@@ -1,0 +1,9 @@
+# Local build and test output
+/bin/
+/dist/
+/coverage/
+*.test
+*.prof
+
+# OS metadata
+.DS_Store
