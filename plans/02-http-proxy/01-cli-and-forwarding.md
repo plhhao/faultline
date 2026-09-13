@@ -1,7 +1,7 @@
 # P04 — CLI validate/serve và HTTP forwarding
 
 - Trạng thái: **Planned**
-- Phụ thuộc: [P01](../01-core/01-config-schema.md), [P02](../01-core/02-runtime-snapshots.md), [P03](../01-core/03-rule-engine.md)
+- Phụ thuộc: [P01a](../01-core/04-multi-file-config.md), [P02](../01-core/02-runtime-snapshots.md), [P03](../01-core/03-rule-engine.md)
 - Nguồn: [specific.md](../../specific.md), mục 3, 7, 8.1, 11.
 - Nghiệm thu MVP liên quan: AC1, AC2, AC17
 - Vùng thay đổi dự kiến: `cmd/faultline/, internal/proxy/http/, tests/integration/`
@@ -12,7 +12,7 @@ Chạy HTTP/1.1 reverse proxy nhiều listener/upstream cố định; khởi đ�
 
 ## PLAN → BUILD
 
-1. Wiring config/control/engine trong CLI validate và serve, gồm --config và --start-enabled; không hiển thị lệnh chưa có implementation.
+1. Wiring config/control/engine trong CLI validate và serve, gồm --config trỏ file gốc và --start-enabled. Cả hai lệnh dùng loader toàn tập include của P01a; một file lỗi không mở listener. Kiểm chứng MC5 phía CLI; không hiển thị lệnh chưa có implementation.
 2. Chuẩn bị config và listener trước khi báo ready; lỗi startup dọn các tài nguyên đã mở.
 3. Stream request/response với bộ nhớ giới hạn, giữ method/path/query/body và HTTP proxy semantics; xử lý hop-by-hop headers.
 4. Kiểm soát đường gửi upstream để không tự retry, kể cả cơ chế retry của transport được chọn. Áp dụng deadline/inflight cơ bản ngay, không chờ hardening.

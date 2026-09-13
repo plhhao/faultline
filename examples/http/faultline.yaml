@@ -1,0 +1,33 @@
+api_version: faultline/v1alpha1
+seed: 42
+runtime:
+  max_inflight_requests: 1000
+  request_timeout: 30s
+proxies:
+  - id: payment
+    protocol: http1
+    listen: 127.0.0.1:8080
+    upstream: http://127.0.0.1:9000
+    rules:
+      - id: payment-lost-response
+        enabled: true
+        match:
+          method: POST
+          path: /payments
+        select:
+          probability: 0.2
+        fault:
+          phase: after_upstream_headers
+          action: hold_response
+          max_duration: 10s
+      - id: payment-delay
+        enabled: true
+        match:
+          method: GET
+          path: /payments
+        select:
+          every: 10
+        fault:
+          phase: before_upstream_request
+          action: delay
+          duration: 500ms

@@ -1,6 +1,6 @@
 # Kế hoạch hiện thực Faultline
 
-Nguồn yêu cầu: [specific.md](../specific.md). Repository hiện chỉ có scaffold; **chưa plan tính năng nào được hiện thực**. Tài liệu gốc là định hướng rộng, không mở rộng MVP ngoài đặc tả đã chốt.
+Nguồn yêu cầu: [specific.md](../specific.md). **Phase 01 đã Done**, gồm P01–P03 và [P01a — cấu hình nhiều file](01-core/04-multi-file-config.md), snapshot và rule engine. Các plan MVP còn lại chưa hiện thực; các plan sau MVP vẫn Deferred.
 
 ## Các phase
 
@@ -8,7 +8,7 @@ Phase 01–05 chia nhỏ giai đoạn A trong mục 13 của đặc tả. Phase 
 
 | Phase | Phạm vi | Kết quả | Số plan |
 | --- | --- | --- | --- |
-| [01 — Core và cấu hình](01-core/README.md) | MVP | Schema, snapshot và quyết định fault kiểm thử được độc lập với HTTP I/O. | 3 |
+| [01 — Core và cấu hình](01-core/README.md) | MVP | Schema, include nhiều file, snapshot và quyết định fault độc lập với HTTP I/O. | 4 |
 | [02 — HTTP/HTTPS proxy](02-http-proxy/README.md) | MVP | CLI validate/serve và proxy nhiều listener chuyển tiếp HTTP/1.1, TLS, lifecycle hooks. | 3 |
 | [03 — Fault actions](03-fault-actions/README.md) | MVP | Tất cả action MVP hoạt động tại đúng phase, có cancellation và bằng chứng kiểm thử. | 3 |
 | [04 — Điều khiển runtime và quan sát](04-runtime-control/README.md) | MVP | Thao tác CLI trên process đang chạy, reload atomically, JSON events và counters. | 3 |
@@ -21,8 +21,9 @@ Phase 01–05 chia nhỏ giai đoạn A trong mục 13 của đặc tả. Phase 
 ## Thứ tự và ranh giới
 
 - MVP: phase 01 → 02 → 03 → 04 → 05. Theo cột phụ thuộc của từng plan; có thể làm các plan độc lập sau khi đủ đầu vào.
+- Hoàn tất P01a trước P04; MC1–MC4 được kiểm chứng ở P01a/P11, MC5 ở P04/P11/P15. Các tiêu chí bổ sung không thay thế AC1–AC24.
 - Sau MVP: phase 06, 07, 08 và bước thiết kế phase 09 đều có thể bắt đầu từ P15 theo ưu tiên thực tế. gRPC cần nền HTTP/2; adapter công nghệ có thể bổ sung phụ thuộc sau khi chọn protocol.
-- P01–P15 là kế hoạch cụ thể cho MVP; P16–P24 là khung công việc mở rộng cần DEFINE lại khi được chọn, không phải cam kết làm mọi capability.
+- P01–P15 và P01a là kế hoạch cụ thể cho MVP; P16–P24 là khung công việc mở rộng cần DEFINE lại khi được chọn, không phải cam kết làm mọi capability.
 - Tận dụng cấu trúc package hiện tại. Chỉ thêm package/interface khi implementation cần; ưu tiên helper có trách nhiệm rõ, không tạo sẵn common/utils hoặc framework plugin.
 - Schema, CLI transport và defaults còn là đề xuất trong đặc tả: chốt ở plan sở hữu, ghi quyết định và cập nhật tài liệu liên quan nếu thay đổi hợp đồng.
 

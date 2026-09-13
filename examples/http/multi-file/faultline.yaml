@@ -1,0 +1,7 @@
+api_version: faultline/v1alpha1
+seed: 42
+runtime:
+  max_inflight_requests: 1000
+  request_timeout: 30s
+include:
+  - proxies/*.yaml

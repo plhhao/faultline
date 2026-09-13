@@ -8,7 +8,7 @@ Use [implementation plans](plans/README.md) for phase order, feature dependencie
 
 ## Project Structure & Module Organization
 
-Faultline is a Go network-failure testing proxy. This repository currently contains a scaffold, not an implemented CLI. Follow `specific.md` for the agreed HTTP/HTTPS MVP; `faultline-project-spec.md` describes the broader vision.
+Faultline is a Go network-failure testing proxy. The config, control, and engine packages are implemented; the CLI and proxy are pending. Follow `specific.md` for the agreed HTTP/HTTPS MVP and future roadmap.
 
 - `cmd/faultline/`: CLI entry point and component wiring.
 - `internal/config/`: configuration parsing and validation.
@@ -26,16 +26,20 @@ The module is `faultline`, declaring Go 1.26.4. Prefix shell commands with `rtk`
 
 - `rtk proxy go list -m`: verify the module now.
 
-After Go source packages and the CLI exist:
+Once the CLI exists:
 
 - `rtk proxy go build -o bin/faultline ./cmd/faultline`: build the executable.
 - `rtk proxy go run ./cmd/faultline --help`: inspect implemented CLI usage.
+
+Available now:
+
+- `rtk proxy go build ./...`: compile implemented packages.
 - `rtk proxy go test ./...`: run tests.
 - `rtk proxy go test -race ./...`: check exercised paths for data races.
 - `rtk proxy go vet ./...`: run static checks.
 - `rtk proxy go fmt ./...`: format Go packages.
 
-No external dependencies, executable, Dockerfile, or additional linter exists yet.
+YAML is pinned in `go.mod`; no executable, Dockerfile, or additional linter exists yet.
 
 ## Coding Style & Architecture
 
@@ -45,7 +49,7 @@ Keep protocol I/O outside `engine`. Adapters provide protocol-specific capabilit
 
 ## Testing Guidelines
 
-Use Go's standard `testing` package. Place unit tests beside implementations in `*_test.go`, with functions named `TestBehavior`. Use table-driven cases where appropriate. Prioritize probability boundaries, reload consistency, cancellation, and resource cleanup. No numeric coverage threshold is established. No tests exist yet; scaffold checks do not establish runtime correctness.
+Use Go's standard `testing` package. Place unit tests beside implementations in `*_test.go`, with functions named `TestBehavior`. Use table-driven cases where appropriate. Prioritize probability boundaries, reload consistency, cancellation, and resource cleanup. No numeric coverage threshold is established. Core unit tests exist; HTTP integration tests and end-to-end acceptance remain pending.
 
 ## Commit & Pull Request Guidelines
 

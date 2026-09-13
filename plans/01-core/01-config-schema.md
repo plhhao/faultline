@@ -1,6 +1,7 @@
 # P01 — Schema và validation YAML
 
-- Trạng thái: **Planned**
+- Trạng thái: **Done**
+- Phạm vi hoàn tất: schema một file. Bổ sung include đã hoàn tất tại [P01a](04-multi-file-config.md).
 - Phụ thuộc: Không; bắt đầu từ scaffold hiện tại.
 - Nguồn: [specific.md](../../specific.md), mục 7, 9, 11.
 - Nghiệm thu MVP liên quan: AC11, AC23
@@ -26,4 +27,9 @@
 
 Không đưa truncate, mTLS, HTTP/2 hoặc runtime plugin vào schema MVP; secrets không xuất hiện trong lỗi.
 
-Áp dụng [điều kiện Done](../README.md#theo-dõi-thực-hiện); các kiểm tra trên là kế hoạch, chưa phải kết quả đã chạy.
+## Kết quả — 2026-09-12
+
+- **Done trong phạm vi core của plan.** Table-driven validation cho config hợp lệ/sai, lỗi có field path, selector/duration/action, TLS key mismatch/CA/file paths và config mẫu. Kiểm tra normalization, thứ tự rule, proxy reorder, deep copies và thay đổi nội dung TLS.
+- VERIFY: `go test ./...`, `go test -race -cover ./...`, `go vet ./...` và `go build ./...` đã pass trên Go 1.26.4, darwin/arm64. Commands dùng prefix `rtk proxy` và `GOCACHE=/private/tmp/faultline-go-build` do sandbox chặn cache mặc định. Coverage package: **93,1%**.
+- REVIEW: Dùng YAML v3.0.5 với decoder theo field path; defaults và quy tắc input được ghi trong examples/http/README.md. Không có protocol/action ngoài MVP hoặc secret scalar trong lỗi.
+- Các AC liên quan mới được kiểm chứng ở tầng core; HTTP I/O, TLS handshake, CLI và fault execution tiếp tục trong các phase sau. Không có blocker còn lại cho phạm vi plan này.

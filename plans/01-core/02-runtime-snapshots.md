@@ -1,6 +1,6 @@
 # P02 — Snapshot và trạng thái injection
 
-- Trạng thái: **Planned**
+- Trạng thái: **Done**
 - Phụ thuộc: [P01](../01-core/01-config-schema.md)
 - Nguồn: [specific.md](../../specific.md), mục 6.3, 8, 8.1.
 - Nghiệm thu MVP liên quan: AC10, AC12, AC17, AC18, AC19, AC20
@@ -26,4 +26,9 @@ Tạo control service trong process, snapshot config và injection state nhất 
 
 Không tạo snapshot gồm config cũ và state mới do đọc rời rạc; flow cũ phải ghi đúng revision.
 
-Áp dụng [điều kiện Done](../README.md#theo-dõi-thực-hiện); các kiểm tra trên là kế hoạch, chưa phải kết quả đã chạy.
+## Kết quả — 2026-09-12
+
+- **Done trong phạm vi core của plan.** Startup disabled, nth không bị tiêu thụ, toggle/no-op, reload/restart rejection, reset counters, revision cũ tiếp tục độc lập, seed replay và acquire/apply/toggle đồng thời.
+- VERIFY: `go test ./...`, `go test -race -cover ./...`, `go vet ./...` và `go build ./...` đã pass trên Go 1.26.4, darwin/arm64. Commands dùng prefix `rtk proxy` và `GOCACHE=/private/tmp/faultline-go-build` do sandbox chặn cache mặc định. Coverage package: **97,6%**.
+- REVIEW: Control sở hữu bản sao Document; đã sửa và thêm regression test cho caller thay Document sau New/Apply. Không lưu map lịch sử revision; snapshot cũ giữ engine/counters đến khi không còn reference.
+- Các AC liên quan mới được kiểm chứng ở tầng core; HTTP I/O, TLS handshake, CLI và fault execution tiếp tục trong các phase sau. Không có blocker còn lại cho phạm vi plan này.

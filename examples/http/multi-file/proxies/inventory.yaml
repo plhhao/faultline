@@ -1,0 +1,6 @@
+proxies:
+  - id: inventory
+    protocol: http1
+    listen: 127.0.0.1:8081
+    upstream: http://127.0.0.1:9001
+    rules: []

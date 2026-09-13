@@ -1,6 +1,6 @@
 # P03 — Matcher, selector và sequence
 
-- Trạng thái: **Planned**
+- Trạng thái: **Done**
 - Phụ thuộc: [P01](../01-core/01-config-schema.md), [P02](../01-core/02-runtime-snapshots.md)
 - Nguồn: [specific.md](../../specific.md), mục 6, 7, 9.
 - Nghiệm thu MVP liên quan: AC3, AC4, AC5, AC6, AC20
@@ -26,4 +26,9 @@ Quyết định tối đa một action cho một attempt từ metadata và snaps
 
 Không hứa tái hiện cùng logical operation dưới concurrency; không tạo common/utils nếu chưa có hành vi thực sự dùng chung.
 
-Áp dụng [điều kiện Done](../README.md#theo-dõi-thực-hiện); các kiểm tra trên là kế hoạch, chưa phải kết quả đã chạy.
+## Kết quả — 2026-09-12
+
+- **Done trong phạm vi core của plan.** Matcher AND/case/path/query/header nhiều giá trị, first-match không fallback, disabled, probability 0/1, nth/every, 10.000 mẫu xác suất, replay seed và 1.000 quyết định đồng thời.
+- VERIFY: `go test ./...`, `go test -race -cover ./...`, `go vet ./...` và `go build ./...` đã pass trên Go 1.26.4, darwin/arm64. Commands dùng prefix `rtk proxy` và `GOCACHE=/private/tmp/faultline-go-build` do sandbox chặn cache mặc định. Coverage package: **100%**.
+- REVIEW: Lock theo rule bảo vệ sequence/random/counters; proxy/rule có scope độc lập. Engine không import HTTP adapter hoặc thực thi action; không coi selected là applied.
+- Các AC liên quan mới được kiểm chứng ở tầng core; HTTP I/O, TLS handshake, CLI và fault execution tiếp tục trong các phase sau. Không có blocker còn lại cho phạm vi plan này.

@@ -13,7 +13,7 @@ Bàn giao cách build/run tái lập cho binary và Docker, hoàn tất gate MVP
 ## PLAN → BUILD
 
 1. Build binary và Dockerfile; chọn OS/architecture thực tế, tài liệu hóa commands, flags và phiên bản toolchain/dependencies.
-2. Mount config/certs với đường dẫn nhất quán; cấu hình bind container rõ ràng, CLI admin dùng được trong container, không expose remote admin mặc định.
+2. Mount toàn bộ cây config (file gốc và proxies fragments) cùng certs với đường dẫn nhất quán; CLI reload trong container gửi đường dẫn root trong container. Cấu hình bind container rõ ràng, không expose remote admin mặc định.
 3. Cập nhật README từ scaffold sang khả năng thật, kèm troubleshooting và giới hạn protocol/fault.
 4. Tổng hợp kết quả AC1–AC24 và limitations; chỉ ghi hoàn tất MVP khi mọi kiểm chứng bắt buộc đã có bằng chứng.
 
@@ -21,6 +21,7 @@ Bàn giao cách build/run tái lập cho binary và Docker, hoàn tất gate MVP
 
 - Smoke test validate/serve/status/enable/reload/disable qua binary và Docker; chạy demo cùng config tương đương.
 - Kiểm tra invalid config/cert, mount paths, signal shutdown và build từ checkout sạch; build/test/race/vet đúng môi trường hỗ trợ.
+- MC5: chạy cùng cấu hình một file và nhiều file; đổi fragment/reload và kiểm tra source path khi fragment bị thiếu hoặc ID trùng.
 
 ## REVIEW
 

@@ -2,7 +2,7 @@
 
 Trạng thái: **Đã cập nhật theo review lần 2; đủ thông tin để chuyển sang thiết kế/triển khai MVP.**
 
-Tài liệu này cụ thể hóa [ý tưởng ban đầu](faultline-project-spec.md), ưu tiên nhu cầu hiện tại: một proxy nhận cấu hình, chuyển tiếp traffic và tạo lỗi với tỉ lệ có thể thay đổi khi đang chạy. Các mục ghi **đề xuất** là phương án mặc định để thảo luận; câu hỏi cần quyết định nằm ở cuối file.
+Tài liệu này là đặc tả chính của dự án, ưu tiên nhu cầu hiện tại: một proxy nhận cấu hình, chuyển tiếp traffic và tạo lỗi với tỉ lệ có thể thay đổi khi đang chạy. Các mục ghi **đề xuất** là phương án mặc định để thảo luận; câu hỏi cần quyết định nằm ở cuối file.
 
 Các điểm đã chốt: ưu tiên HTTP và inject lỗi; cấu hình mới chỉ áp dụng cho request mới; xác suất trên từng request eligible; reset counters khi config thay đổi; chạy binary/Docker cho dev; adapter/action nằm trong source Go. UI dùng trên server test chung ở giai đoạn sau, tester chưa phải người dùng chính. Không yêu cầu sửa code hoặc thêm header để dùng chức năng cơ bản.
 
@@ -262,7 +262,7 @@ Không nên cho các tỷ lệ độc lập chồng lên nhau mà thiếu semant
 
 ## 7. Cấu hình khai báo — schema đề xuất
 
-Ví dụ dưới đây là hợp đồng thiết kế dự kiến, chưa phải CLI/schema đã được implement. Chỉ khai báo tính năng MVP để tránh nhầm với roadmap.
+Schema và validation đã được hiện thực trong phase 1; CLI và adapter vẫn chưa được implement. Defaults và quy tắc parse cụ thể nằm trong [hướng dẫn config](examples/http/README.md). Ví dụ dưới đây chỉ khai báo tính năng MVP để tránh nhầm với roadmap.
 
 ```yaml
 api_version: faultline/v1alpha1
@@ -349,11 +349,62 @@ faultline reload --config ./faultline.yaml
 faultline disable
 ```
 
-Đề xuất `reload` gửi tài liệu cấu hình đến process đang chạy qua kênh quản trị cục bộ riêng. Process phải validate lại và trả revision có hiệu lực; CLI không chỉ xác nhận rằng file đã đọc được. Cách định danh process/socket cụ thể sẽ chốt khi thiết kế CLI.
+`reload` sẽ gửi đường dẫn tuyệt đối của file config gốc qua kênh quản trị cục bộ riêng. Process đang chạy tự đọc file gốc và toàn bộ include trong filesystem của nó, validate lại và trả revision có hiệu lực; CLI không chỉ xác nhận rằng file đã đọc được. Cách định danh process/socket cụ thể sẽ chốt khi thiết kế CLI.
 
 Validation phải từ chối unknown field, ID trùng trong cùng scope, selector không hợp lệ, duration không dương, status không thuộc 200–599 với `respond`, upstream/listener sai định dạng và action/phase không được adapter hỗ trợ. Lỗi phải chỉ rõ đường dẫn field; không âm thầm bỏ qua config không hiểu.
 
 TLS validation kiểm tra cert/key đọc được và khớp, CA parse được, không cho `upstream_tls` đi cùng upstream HTTP. Lỗi xác minh chứng chỉ upstream khi kết nối phải được ghi riêng với fault do engine inject.
+
+### 7.1. Cấu hình nhiều file — đã hiện thực ở core phase 1
+
+`config.Load(rootFilename)` đọc toàn bộ tập file; `control.ReloadFile(rootFilename)` nạp lại và apply. `Parse(data, filename)`/`Reload(data, filename)` chỉ dành cho YAML standalone và từ chối include. CLI/Docker còn chờ các phase sau; MC1–MC4 đã kiểm chứng ở tầng core.
+
+Một file gốc là điểm vào cho validate/serve/reload; có thể giữ toàn bộ `proxies` trong file đó hoặc dùng `include` để chia theo dependency. Cấu hình một file hiện tại tiếp tục hợp lệ.
+
+```text
+config/
+├── faultline.yaml
+└── proxies/
+    ├── payment.yaml
+    └── inventory.yaml
+```
+
+File gốc `config/faultline.yaml`:
+
+```yaml
+api_version: faultline/v1alpha1
+seed: 42
+runtime:
+  max_inflight_requests: 1000
+  request_timeout: 30s
+include:
+  - proxies/*.yaml
+```
+
+File con `config/proxies/payment.yaml`:
+
+```yaml
+proxies:
+  - id: payment
+    protocol: http1
+    listen: 127.0.0.1:8080
+    upstream: http://127.0.0.1:9000
+    rules: []
+```
+
+Hợp đồng nạp cấu hình:
+
+- `include` là danh sách đường dẫn file hoặc glob, resolve theo thư mục file gốc. Chỉ hỗ trợ include ở file gốc; file con chỉ có `proxies`, không có `seed`, `runtime`, `api_version` hoặc include lồng nhau.
+- Mỗi file chứa đúng một YAML document. Ghép proxies inline trước, tiếp theo theo thứ tự mục include; kết quả từng glob được sắp xếp từ điển theo đường dẫn. Giữ nguyên thứ tự rules trong từng proxy.
+- **Proxy ID trùng ở bất kỳ file nào đều báo lỗi**, không merge hoặc ghi đè. Rule ID trùng trong cùng proxy cũng báo lỗi; hai proxy khác nhau được dùng cùng rule ID vì counters có scope proxy/rule.
+- File không tồn tại/không đọc được, glob sai/không match, hoặc include trỏ tới thư mục đều là lỗi. Cùng file vật lý được include nhiều lần, kể cả qua symlink, cũng báo lỗi; không âm thầm đọc hai lần. File con phải có danh sách proxies không rỗng; sau ghép cần ít nhất một proxy.
+- Cert/key/CA resolve theo thư mục **file khai báo proxy đó**. Lỗi chỉ rõ source file và field path; lỗi ID trùng chỉ rõ cả hai nơi khai báo, không in giá trị nhạy cảm.
+- Tất cả proxies được validate chung trước tạo một `Document`/snapshot. Source paths và cách chia file chỉ phục vụ chẩn đoán; không tham gia hash cấu hình hiệu lực. Chuyển proxy sang file khác vẫn no-op nếu cấu hình chuẩn hóa, TLS paths và nội dung TLS không đổi.
+- Reload đọc lại toàn bộ tập file từ file gốc. Một lỗi làm cả lần apply thất bại; request cũ giữ snapshot cũ, request mới chỉ nhận snapshot mới sau apply thành công. Thêm/xóa proxy hoặc đổi listener/upstream/TLS/runtime vẫn cần restart theo mục 8; tách nhiều file không thay đổi giới hạn này.
+- Tính atomic áp dụng cho việc công bố snapshot trong process, không phải giao dịch ghi nhiều file trên đĩa. Người dùng hoàn tất chỉnh sửa các file rồi mới reload; chưa có auto-watch.
+- CLI validate/serve đọc filesystem nơi lệnh chạy; reload đọc filesystem của process phục vụ. Trên Docker, mount cả cây config và certificate cần dùng, chạy CLI quản trị trong container với đường dẫn tương ứng; không upload config/cert qua admin channel.
+
+Tiêu chí bổ sung: **MC1** một file và nhiều file tương đương có cùng effective config; **MC2** lỗi include/ID/field có nguồn rõ và giữ revision cũ; **MC3** TLS paths resolve theo file con; **MC4** đổi rules trong file con reset counters, chia lại file tương đương là no-op; **MC5** validate/serve/reload chạy được với cây config mount trong Docker. AC1–AC24 vẫn giữ nguyên và phải regression.
 
 ## 8. Cập nhật cấu hình khi đang chạy
 
