@@ -23,6 +23,7 @@ type Decision struct {
 	RuleID           string
 	EligibleSequence uint64
 	Selected         bool
+	Selector         config.Selector
 	Fault            config.Fault
 }
 
@@ -83,6 +84,7 @@ func (e *Engine) Decide(proxyID string, metadata Metadata, enabled bool) (Decisi
 		decision.RuleID = state.rule.ID
 		decision.EligibleSequence = sequence
 		decision.Selected = selected
+		decision.Selector = state.rule.Select.Clone()
 		decision.Fault = state.rule.Fault.Clone()
 		return decision, nil
 	}

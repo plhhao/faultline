@@ -7,10 +7,10 @@ and records what happened.
 The first milestone targets HTTP/1.1 over HTTP and HTTPS, with file-based
 configuration, runtime injection controls, and one fault action per request.
 
-**Status:** phases 1–3 are implemented: strict YAML configuration, runtime
-snapshots, rule selection, CLI validate/serve, and HTTP/HTTPS forwarding with
-lifecycle hooks, and all five MVP fault actions. Runtime administration and the
-recorder (phase 4) are pending.
+**Status:** core, HTTP/HTTPS forwarding and all five MVP fault actions are
+implemented. Phase 4 adds local runtime administration and bounded JSON events.
+Host tests and the Docker/OrbStack runtime smoke test have passed; phases 1–4 are complete.
+The payment demo, resource benchmarks and release packaging remain in phase 5.
 
 ## Run locally
 
@@ -27,12 +27,74 @@ upstream readiness. Ctrl+C/SIGTERM cancels active flows and closes listeners.
 
 Injection starts disabled, so configured rules do not affect startup traffic or
 consume selector counters. `serve --start-enabled` enables configured fault
-actions immediately. Only `validate`
-and `serve` are available; enable/disable/reload/status commands come in phase 4.
+actions immediately. Otherwise, enable injection after the application is ready:
 
 ```sh
-rtk proxy ./bin/faultline serve --config examples/http/faultline.yaml --start-enabled
+rtk proxy ./bin/faultline status
+rtk proxy ./bin/faultline enable
+rtk proxy ./bin/faultline reload --config examples/http/faultline.yaml
+rtk proxy ./bin/faultline disable
 ```
+
+## Runtime administration
+
+Admin uses HTTP/JSON over a local Unix socket on macOS/Linux, separate from fault
+traffic. The default is `/tmp/faultline-<uid>/admin.sock`. For multiple instances,
+pass the same `--admin-socket PATH` to `serve` and each command targeting it.
+The parent directory must be private (0700); missing directories are created and
+the socket is 0600. Existing sockets are never overwritten. Normal shutdown
+removes the socket; after an unclean exit, remove a stale socket only after
+confirming its instance has stopped.
+
+Runtime commands print JSON and support `--timeout` (default 5s). Failure exits
+with code 1; success/help exits with 0. A timeout can leave the mutation outcome
+unknown; check `status` before retrying. Commands do not retry automatically.
+`reload` sends an absolute root path, and the serving process reads/validates the
+complete config tree. Paths must exist in that process's filesystem. Finish all
+file edits before reloading. Rules/seed can change; listener/upstream/TLS/runtime
+changes require restart. Equivalent reloads and repeated toggles are no-ops.
+
+`status` includes control identity/timestamps/sequence, listener readiness,
+current-revision rule eligible/selected counters and run-wide recorder counters.
+Recorder totals persist through reloads; rule counters reset for a new revision.
+Counters can advance while status is sampled. `active_fault_flows` counts live
+flows whose action has started, including old snapshots after disable/reload.
+Disable changes new requests only; it does not end those flows.
+
+In a container, run the admin CLI using `docker exec` and the container's config
+paths. No admin TCP port needs publishing. Production Docker packaging is P15;
+the optional container smoke test below checks mounted config/certificate paths.
+
+## Events and counters
+
+`serve` reserves stdout for newline-delimited JSON events. Readiness and errors
+go to stderr, so events can be captured using normal stdout redirection.
+Events cover flow start, decision, fault reached/applied, flow finish and control
+operations. They contain run/flow/proxy/protocol, revision/state/sequence,
+timestamps, rule/selector, phase/action and observed outcome. Raw errors, URLs,
+headers and request/response/config bodies are excluded. Configured IDs remain
+visible. Upstream status records an observation, not proof of business commit.
+
+Outcomes distinguish pass-through, fault applied, not-reached selection,
+upstream/TLS failure, proxy overload/timeout, client cancellation and shutdown.
+`selected`, `reached`, `applied` and `not_reached` are separate fields. Use control
+sequence/revision to correlate concurrent events; line order alone does not
+establish when a control change became visible to another goroutine.
+
+The queue holds at most `--event-buffer` events (default 1024), plus one event
+being written. When full, it drops the new event and increments `dropped_events`.
+Total/eligible/selected/applied/active counters are updated independently of
+queue delivery. `write_errors`, `written_events` and `pending_events` describe
+the sink. Nonzero dropped/write-error/pending counts can mean an incomplete
+artifact. No historical revision or completed-flow map is retained.
+
+Shutdown cancels flows, closes admin/listeners, queues a counters summary and
+flushes events for at most 2s. Missing events/write failures are also reported on stderr.
+A blocked generic writer may retain one writer goroutine until process exit;
+shutdown reports a flush timeout rather than waiting indefinitely. A failed or
+partial sink write can damage the JSON stream; counters do not make it complete.
+`serve` ignores SIGPIPE so a closed stdout consumer becomes a counted sink error
+while the proxy and admin channel keep running.
 
 ## Available faults
 
@@ -78,8 +140,8 @@ even if its final report records cancellation before the configured duration.
 
 The adapter exposes before-request and after-final-headers hooks; informational
 1xx responses do not trigger the latter. Each request pins one control snapshot.
-An optional in-process observer receives selection, reach/application state and
-outcome; persistent events and aggregate observability are deferred to phase 4.
+The recorder receives lifecycle events; the optional in-process observer also
+receives the final report, including rejected overload/unsupported requests.
 
 Multi-file configuration with a root file and `include` is implemented in
 [P01a](plans/01-core/04-multi-file-config.md). See the
@@ -94,7 +156,7 @@ faultline/
 │   └── faultline/          # CLI entry point and application wiring
 ├── internal/
 │   ├── config/             # Configuration schema, parsing, and validation
-│   ├── control/            # Active snapshots, reload, enable/disable, status
+│   ├── control/            # Snapshots and local admin socket/client
 │   ├── engine/             # Protocol-independent matching and fault selection
 │   ├── fault/              # Fault actions and execution
 │   ├── proxy/
@@ -126,7 +188,8 @@ project is added to Git. Remove each placeholder when its directory gains files.
   points and capabilities needed to execute a fault.
 - `fault` implements actions using those capabilities, honoring cancellation
   and deadlines.
-- `recorder` will record decisions and outcomes with bounded resource use.
+- `recorder` records decisions and outcomes through a bounded queue, retaining
+  run counters independently of event delivery.
 
 Unit tests will live beside the Go files they test. Tests that exercise multiple
 components will live in `tests/integration`. Future protocol adapters will be
@@ -155,6 +218,14 @@ integration. Full MVP acceptance and resource benchmarks remain in phase 5. If t
 the default Go build cache, prefix the Go invocation with
 `env GOCACHE=/private/tmp/faultline-go-build` after `rtk proxy`.
 Integration tests require permission to bind localhost TCP ports.
+
+The optional container smoke test needs a running Docker daemon. It builds a
+temporary scratch image and checks mounted root/includes/TLS files plus admin
+commands, then removes its own container/image:
+
+```sh
+rtk proxy env FAULTLINE_DOCKER_TEST=1 go test ./tests/integration -run '^TestContainerRuntime$' -timeout 180s
+```
 
 See [configuration defaults and example](examples/http/README.md) and
 [phase 1 implementation decisions](plans/01-core/README.md#quyết-định-hiện-thực).

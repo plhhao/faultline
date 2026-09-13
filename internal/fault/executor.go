@@ -21,3 +21,8 @@ type Capabilities interface {
 type Executor interface {
 	Execute(ctx context.Context, action config.Fault, flow Capabilities) (applied bool, err error)
 }
+
+// ApplicationObserver receives the first effect before a blocking action completes.
+type ApplicationObserver interface {
+	FaultApplied()
+}

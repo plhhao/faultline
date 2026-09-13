@@ -103,6 +103,13 @@ func (f Fault) Clone() Fault {
 	return f
 }
 
+func (s Selector) Clone() Selector {
+	s.Probability = clonePointer(s.Probability)
+	s.Nth = clonePointer(s.Nth)
+	s.Every = clonePointer(s.Every)
+	return s
+}
+
 func clonePointer[T any](p *T) *T {
 	if p == nil {
 		return nil

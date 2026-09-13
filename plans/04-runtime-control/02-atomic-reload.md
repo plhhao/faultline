@@ -1,6 +1,6 @@
 # P11 — Reload qua CLI và revision nhất quán
 
-- Trạng thái: **Planned**
+- Trạng thái: **Done** (2026-09-13)
 - Phụ thuộc: [P10](../04-runtime-control/01-local-admin.md)
 - Nguồn: [specific.md](../../specific.md), mục 7, 8, 8.1.
 - Nghiệm thu MVP liên quan: AC10, AC11, AC12, AC19
@@ -17,6 +17,11 @@ CLI gửi config đến process để validate lại và apply atomically; chỉ
 3. So sánh config hiệu lực, từ chối thay listener/protocol/upstream/TLS/runtime limits; rules và seed theo schema có thể tạo revision mới.
 4. Giữ state injection khi reload; no-op giữ counters, revision mới reset mọi rule counter và flow cũ tiếp tục ghi revision cũ.
 
+Quyết định: CLI chỉ gửi absolute root path; server gọi `control.ReloadFile`.
+Các lệnh mutation được serialize trong admin; status trả snapshot control và
+counters đang quan sát. Timeout CLI có thể xảy ra sau khi mutation đã áp dụng;
+CLI không tự retry, dùng status để kiểm tra lại.
+
 ## VERIFY
 
 - Giữ một request đang chạy rồi reload 0→1: cũ không đổi, mới dùng revision mới, kể cả trên keep-alive.
@@ -27,4 +32,10 @@ CLI gửi config đến process để validate lại và apply atomically; chỉ
 
 CLI đọc được file không đủ kết luận apply thành công; không áp dụng một phần hoặc giữ snapshot cũ vô hạn.
 
-Áp dụng [điều kiện Done](../README.md#theo-dõi-thực-hiện); các kiểm tra trên là kế hoạch, chưa phải kết quả đã chạy.
+## Kết quả VERIFY/REVIEW
+
+- CLI process test pass: old request giữ revision 1; sau reload, request mới trên connection keep-alive dùng revision 2. State injection được giữ.
+- Admin tests pass: thay rule fragment; chia lại file tương đương no-op; duplicate proxy ID, missing glob, config lỗi, upstream/runtime đổi bị từ chối và giữ snapshot/counters.
+- Revision mới reset rule counter, toggle không reset; concurrent reload/toggle/request pass dưới race detector. Validation và restart compatibility dùng lại control/config hiện có.
+- REVIEW: chỉ gửi absolute root path, không upload config/cert. CLI timeout không đủ kết luận mutation thất bại; không retry tự động. Không hứa filesystem transaction khi files đang đổi.
+- Host MC2/MC4 và container MC5 đã pass. [Test opt-in](README.md#kiểm-chứng-container) chạy 3 lần trên Docker/OrbStack: root/includes/TLS mount, sửa rule tạo revision mới giữ enabled, no-op giữ revision và duplicate ID giữ snapshot cũ. Test đợi validation thấy đủ fixture qua bind mount trước mutation.

@@ -1,6 +1,6 @@
 # Kế hoạch hiện thực Faultline
 
-Nguồn yêu cầu: [specific.md](../specific.md). **Phase 01–03 đã Done**: core, [P01a — cấu hình nhiều file](01-core/04-multi-file-config.md), CLI validate/serve, HTTP/HTTPS forwarding, lifecycle hooks và năm fault action MVP. Phase 04–05 chưa hiện thực; các plan sau MVP vẫn Deferred.
+Nguồn yêu cầu: [specific.md](../specific.md). **Phase 01–04 đã Done**: core, [P01a — cấu hình nhiều file](01-core/04-multi-file-config.md), CLI validate/serve, HTTP/HTTPS forwarding, lifecycle hooks, năm fault action MVP và admin/runtime recorder. Phase 04 đã pass kiểm thử host và container Docker/OrbStack. Phase 05 chưa hiện thực; các plan sau MVP vẫn Deferred.
 
 ## Các phase
 

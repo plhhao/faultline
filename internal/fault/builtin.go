@@ -17,15 +17,21 @@ func (Builtin) Execute(ctx context.Context, action config.Fault, flow Capabiliti
 	}
 	switch action.Action {
 	case "delay":
+		applied(flow)
 		return true, wait(ctx, *action.Duration)
 	case "respond":
+		applied(flow)
 		return true, flow.Respond(*action.Status, *action.Body)
 	case "close_connection":
 		flow.CancelUpstream()
 		err := flow.CloseConnection()
+		if err == nil {
+			applied(flow)
+		}
 		return err == nil, err
 	case "hold_request", "hold_response":
 		flow.CancelUpstream()
+		applied(flow)
 		err := wait(ctx, *action.MaxDuration)
 		closeErr := flow.CloseConnection()
 		if err != nil {
@@ -34,6 +40,12 @@ func (Builtin) Execute(ctx context.Context, action config.Fault, flow Capabiliti
 		return true, closeErr
 	default:
 		return false, fmt.Errorf("unsupported fault action %q", action.Action)
+	}
+}
+
+func applied(flow Capabilities) {
+	if observer, ok := flow.(ApplicationObserver); ok {
+		observer.FaultApplied()
 	}
 }
 

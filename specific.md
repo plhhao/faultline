@@ -262,7 +262,7 @@ Không nên cho các tỷ lệ độc lập chồng lên nhau mà thiếu semant
 
 ## 7. Cấu hình khai báo — schema đề xuất
 
-Schema và validation đã được hiện thực trong phase 1; CLI validate/serve và HTTP/HTTPS adapter ở phase 2, các fault action ở phase 3. Điều khiển runtime qua CLI và recorder còn ở phase 4. Defaults và quy tắc parse cụ thể nằm trong [hướng dẫn config](examples/http/README.md). Ví dụ dưới đây chỉ khai báo tính năng MVP để tránh nhầm với roadmap.
+Schema và validation đã được hiện thực trong phase 1; CLI validate/serve và HTTP/HTTPS adapter ở phase 2, các fault action ở phase 3. Phase 4 bổ sung CLI runtime và recorder; kết quả kiểm chứng nằm trong plan tương ứng. Defaults và quy tắc parse cụ thể nằm trong [hướng dẫn config](examples/http/README.md). Ví dụ dưới đây chỉ khai báo tính năng MVP để tránh nhầm với roadmap.
 
 ```yaml
 api_version: faultline/v1alpha1
@@ -332,7 +332,7 @@ rules: []
 
 Đường dẫn file được resolve theo thư mục config và cần tồn tại trong filesystem của process Faultline. Khi chạy Docker phải mount config/cert vào container; CLI reload không tự upload certificate hoặc key. Đổi TLS settings/certificate cần restart trong MVP.
 
-CLI dự kiến:
+CLI hiện tại:
 
 ```sh
 faultline validate --config ./faultline.yaml
@@ -349,7 +349,7 @@ faultline reload --config ./faultline.yaml
 faultline disable
 ```
 
-`reload` sẽ gửi đường dẫn tuyệt đối của file config gốc qua kênh quản trị cục bộ riêng. Process đang chạy tự đọc file gốc và toàn bộ include trong filesystem của nó, validate lại và trả revision có hiệu lực; CLI không chỉ xác nhận rằng file đã đọc được. Cách định danh process/socket cụ thể sẽ chốt khi thiết kế CLI.
+`reload` gửi đường dẫn tuyệt đối của file config gốc qua Unix socket riêng. Process đang chạy tự đọc file gốc và toàn bộ include trong filesystem của nó, validate lại và trả revision có hiệu lực. `--admin-socket PATH` chọn instance; mặc định `/tmp/faultline-<uid>/admin.sock`, thư mục riêng 0700 và socket 0600. Runtime CLI có `--timeout` mặc định 5s, không tự retry mutation; timeout cần kiểm tra lại status vì thao tác có thể đã áp dụng. Xem [hướng dẫn runtime](README.md#runtime-administration).
 
 Validation phải từ chối unknown field, ID trùng trong cùng scope, selector không hợp lệ, duration không dương, status không thuộc 200–599 với `respond`, upstream/listener sai định dạng và action/phase không được adapter hỗ trợ. Lỗi phải chỉ rõ đường dẫn field; không âm thầm bỏ qua config không hiểu.
 
@@ -533,7 +533,7 @@ Giai đoạn assertions phải hỗ trợ kết quả **không đủ dữ liệu
 
 Đã chốt chạy binary và Docker để test lỗi ở dev. Có định hướng server test dùng chung và UI sau này; hiện developer là người dùng chính. CLI quản trị chạy cục bộ trên host hoặc trong container; chưa cần mở API quản trị từ xa cho tester ở MVP.
 
-- Listener và kênh quản trị local bind loopback mặc định; deployment container có thể cấu hình địa chỉ bind rõ ràng.
+- Listener bind loopback mặc định; deployment container có thể cấu hình địa chỉ bind rõ ràng. Kênh quản trị dùng Unix socket riêng với quyền filesystem, không mở cổng TCP quản trị.
 - Admin channel tách biệt traffic được inject lỗi. Khi đưa lên server cho tester, bổ sung authentication, authorization và audit thay đổi config.
 - Delay/hold phải hủy được khi client cancel, request deadline hoặc process shutdown; không để goroutine/timer tồn tại vô hạn.
 - Cần giới hạn inflight, thời gian đọc headers, idle connection, tổng thời gian request và hàng đợi recorder. Chi tiết defaults sẽ chốt sau khi biết tải mục tiêu.

@@ -3,6 +3,7 @@ package httpproxy
 import (
 	"context"
 	"crypto/rand"
+	"crypto/x509"
 	"errors"
 	"io"
 	"log"
@@ -19,17 +20,22 @@ import (
 	"faultline/internal/control"
 	"faultline/internal/engine"
 	"faultline/internal/fault"
+	"faultline/internal/recorder"
 )
 
 type Report struct {
-	FlowID     string
-	Info       control.Info
-	Decision   engine.Decision
-	Reached    bool
-	Applied    bool
-	NotReached bool
-	Outcome    string
-	Err        error
+	FlowID         string
+	Info           control.Info
+	Decision       engine.Decision
+	Reached        bool
+	Applied        bool
+	NotReached     bool
+	Outcome        string
+	Err            error
+	StartedAt      time.Time
+	FinishedAt     time.Time
+	UpstreamStatus int
+	ErrorKind      string
 }
 
 type handler struct {
@@ -40,6 +46,7 @@ type handler struct {
 	runtime   config.Runtime
 	slots     chan struct{}
 	options   Options
+	shutdown  context.Context
 }
 
 type flow struct {
@@ -50,7 +57,10 @@ type flow struct {
 	body           io.ReadCloser
 	terminal       bool
 	disconnected   bool
+	onApplied      func()
 }
+
+func (f *flow) FaultApplied() { f.onApplied() }
 
 func (f *flow) CancelUpstream() {
 	f.cancelUpstream()
@@ -111,7 +121,23 @@ func (b *uploadBody) Read(p []byte) (int, error) {
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	snapshot := h.service.Acquire()
+	report := Report{FlowID: rand.Text(), Info: snapshot.Info(), StartedAt: time.Now().UTC(), Outcome: "completed"}
+	record := func(kind string) {
+		if h.options.Recorder != nil {
+			h.options.Recorder.Record(event(kind, report, h.proxyID))
+		}
+	}
+	record("flow_started")
+	defer func() {
+		report.FinishedAt = time.Now().UTC()
+		report.NotReached = report.Decision.Selected && !report.Reached
+		record("flow_finished")
+		if h.options.Observe != nil {
+			h.options.Observe(report)
+		}
+	}()
 	if r.ProtoMajor != 1 || r.ProtoMinor != 1 || r.Method == http.MethodConnect || r.Header.Get("Upgrade") != "" || hasUpgrade(r.Header) || r.URL.IsAbs() {
+		report.Outcome, report.ErrorKind = "unsupported_request", "unsupported_request"
 		w.Header().Set("Connection", "close")
 		http.Error(w, "only HTTP/1.1 reverse proxy requests are supported", http.StatusNotImplemented)
 		return
@@ -120,6 +146,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case h.slots <- struct{}{}:
 		defer func() { <-h.slots }()
 	default:
+		report.Outcome, report.ErrorKind = "proxy_overload", "proxy_overload"
 		w.Header().Set("Connection", "close")
 		http.Error(w, "proxy inflight limit reached", http.StatusServiceUnavailable)
 		return
@@ -144,7 +171,12 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Body = upload
 	upstreamCtx, cancelUpstream := context.WithCancel(ctx)
 	f := &flow{writer: w, conn: conn, method: r.Method, cancelUpstream: cancelUpstream}
-	report := Report{FlowID: rand.Text(), Info: snapshot.Info(), Outcome: "completed"}
+	f.onApplied = func() {
+		if !report.Applied {
+			report.Applied = true
+			record("fault_applied")
+		}
+	}
 	var discarded chan struct{}
 	defer func() {
 		// Transport may still be reading an upload after an early upstream response.
@@ -161,14 +193,22 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Intentional connection closure may itself cancel the request context.
 		if ctx.Err() != nil && (!f.disconnected || report.Err != nil) {
 			report.Outcome, report.Err = "canceled", ctx.Err()
+			switch {
+			case h.shutdown.Err() != nil:
+				report.ErrorKind = "shutdown"
+			case errors.Is(ctx.Err(), context.DeadlineExceeded):
+				report.ErrorKind = "proxy_timeout"
+			default:
+				report.ErrorKind = "client_canceled"
+			}
 		}
-		report.NotReached = report.Decision.Selected && !report.Reached
-		if h.options.Observe != nil {
-			h.options.Observe(report)
+		if report.ErrorKind == "" && report.Err != nil {
+			report.ErrorKind = errorKind(report.Err, report.Outcome)
 		}
 	}()
 	var err error
 	report.Decision, err = snapshot.Decide(h.proxyID, engine.Metadata{Method: r.Method, Path: r.URL.Path, Headers: r.Header})
+	record("decision")
 	if err != nil {
 		report.Outcome, report.Err = "proxy_error", err
 		http.Error(w, "proxy decision failed", http.StatusInternalServerError)
@@ -179,6 +219,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return nil
 		}
 		report.Reached = true
+		record("fault_reached")
 		if h.options.Executor == nil {
 			return fault.ErrUnavailable
 		}
@@ -191,7 +232,11 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}()
 		}
 		var err error
-		report.Applied, err = h.options.Executor.Execute(ctx, report.Decision.Fault.Clone(), f)
+		var wasApplied bool
+		wasApplied, err = h.options.Executor.Execute(ctx, report.Decision.Fault.Clone(), f)
+		if wasApplied {
+			f.FaultApplied()
+		}
 		if err != nil {
 			report.Outcome, report.Err = "executor_error", err
 			return err
@@ -237,6 +282,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		},
 		Transport: h.transport,
 		ModifyResponse: func(response *http.Response) error {
+			report.UpstreamStatus = response.StatusCode
 			f.body = response.Body
 			if response.StatusCode == http.StatusSwitchingProtocols {
 				return errors.New("upstream protocol upgrade is unsupported")
@@ -254,6 +300,48 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 	proxy.ServeHTTP(w, r.WithContext(upstreamCtx))
+}
+
+func event(kind string, r Report, proxyID string) recorder.Event {
+	s := r.Decision.Selector.Clone()
+	e := recorder.Event{Info: r.Info, Type: kind, FlowID: r.FlowID, ProxyID: proxyID, Protocol: "http1", StartedAt: r.StartedAt, FinishedAt: r.FinishedAt,
+		RuleID: r.Decision.RuleID, EligibleSequence: r.Decision.EligibleSequence, Probability: s.Probability, Nth: s.Nth, Every: s.Every,
+		Selected: r.Decision.Selected, Reached: r.Reached, Applied: r.Applied, NotReached: r.NotReached, Phase: r.Decision.Fault.Phase,
+		Action: r.Decision.Fault.Action, Outcome: r.Outcome, ErrorKind: r.ErrorKind, UpstreamStatus: r.UpstreamStatus}
+	switch {
+	case s.Probability != nil:
+		e.Selector = "probability"
+	case s.Nth != nil:
+		e.Selector = "nth"
+	case s.Every != nil:
+		e.Selector = "every"
+	}
+	if kind != "flow_finished" {
+		e.Outcome = ""
+	} else if r.Outcome == "completed" {
+		if r.Applied {
+			e.Outcome = "fault_applied"
+		} else {
+			e.Outcome = "pass_through"
+		}
+	} else if r.Outcome == "canceled" {
+		e.Outcome = r.ErrorKind
+	}
+	return e
+}
+
+func errorKind(err error, fallback string) string {
+	var authority x509.UnknownAuthorityError
+	var hostname x509.HostnameError
+	var certificate x509.CertificateInvalidError
+	if errors.As(err, &authority) || errors.As(err, &hostname) || errors.As(err, &certificate) {
+		return "upstream_tls"
+	}
+	var timeout net.Error
+	if errors.As(err, &timeout) && timeout.Timeout() {
+		return "upstream_timeout"
+	}
+	return fallback
 }
 
 func hasUpgrade(headers http.Header) bool {

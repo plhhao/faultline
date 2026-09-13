@@ -95,13 +95,17 @@ func TestInflightLimitReleasedAfterCancel(t *testing.T) {
 	if status, _ := readResponse(t, c, "http://"+addr); status != 503 {
 		t.Fatal(status)
 	}
+	if r := receive(t, reports); r.Outcome != "proxy_overload" {
+		t.Fatalf("%+v", r)
+	}
 	cancel()
 	receive(t, done)
 	receive(t, reports)
-	// Observation precedes returning from the handler; retry only overload responses.
+	// Retry only overload responses while the canceled handler is releasing its slot.
 	deadline := time.Now().Add(3 * time.Second)
 	for {
 		status, body := readResponse(t, c, "http://"+addr)
+		receive(t, reports)
 		if status == 200 && body == "ok" {
 			break
 		}

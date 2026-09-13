@@ -8,11 +8,12 @@ Use [implementation plans](plans/README.md) for phase order, feature dependencie
 
 ## Project Structure & Module Organization
 
-Faultline is a Go network-failure testing proxy. Core, CLI validate/serve, HTTP/HTTPS forwarding and MVP fault actions are implemented; runtime administration and recorder are pending. Follow `specific.md` for the agreed HTTP/HTTPS MVP and future roadmap.
+Faultline is a Go network-failure testing proxy. Core, HTTP/HTTPS forwarding, MVP faults, local admin commands and JSON recorder are implemented. Phase 4 passed host/container verification; phase 5 owns final MVP acceptance. Follow `specific.md` for the agreed scope.
 
 - `cmd/faultline/`: CLI entry point and component wiring.
 - `internal/config/`: configuration parsing and validation.
 - `internal/control/`: active snapshots, reload, injection enable/disable, and status.
+- `internal/control/admin/`: private Unix socket server and runtime CLI client.
 - `internal/engine/`: protocol-independent rule matching and fault selection.
 - `internal/fault/`: fault actions; `internal/proxy/http/`: HTTP I/O, TLS, and lifecycle hooks.
 - `internal/recorder/`: structured events and counters.
@@ -30,6 +31,7 @@ CLI commands:
 
 - `rtk proxy go build -o bin/faultline ./cmd/faultline`: build the executable.
 - `rtk proxy go run ./cmd/faultline --help`: inspect implemented CLI usage.
+- `status`, `enable`, `disable`, `reload --config FILE` target `--admin-socket PATH`; `serve` emits JSON stdout and human diagnostics stderr.
 
 Available now:
 
@@ -39,7 +41,7 @@ Available now:
 - `rtk proxy go vet ./...`: run static checks.
 - `rtk proxy go fmt ./...`: format Go packages.
 
-YAML is pinned in `go.mod`; no Dockerfile or additional linter exists yet.
+YAML is pinned in `go.mod`; no release Dockerfile or additional linter exists yet. Opt-in container verification: `rtk proxy env FAULTLINE_DOCKER_TEST=1 go test ./tests/integration -run '^TestContainerRuntime$' -timeout 180s`.
 
 ## Coding Style & Architecture
 

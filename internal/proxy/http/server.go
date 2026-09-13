@@ -14,12 +14,14 @@ import (
 
 	"faultline/internal/control"
 	"faultline/internal/fault"
+	"faultline/internal/recorder"
 )
 
 // Observe runs synchronously as a flow finishes; it must be concurrency-safe and bounded.
 type Options struct {
 	Executor fault.Executor
 	Observe  func(Report)
+	Recorder *recorder.Recorder
 }
 
 type endpoint struct {
@@ -68,7 +70,7 @@ func Start(service *control.Service, options Options) (*Server, error) {
 			listener = tls.NewListener(listener, listenerTLS)
 		}
 		target, _ := url.Parse(p.Upstream)
-		handler := &handler{service: service, proxyID: p.ID, target: target, transport: transport, runtime: c.Runtime, slots: slots, options: options}
+		handler := &handler{service: service, proxyID: p.ID, target: target, transport: transport, runtime: c.Runtime, slots: slots, options: options, shutdown: ctx}
 		server := &http.Server{
 			Handler: s.track(handler), Protocols: http1(),
 			ReadHeaderTimeout: c.Runtime.RequestTimeout, ReadTimeout: c.Runtime.RequestTimeout,
@@ -94,6 +96,16 @@ func Start(service *control.Service, options Options) (*Server, error) {
 }
 
 func (s *Server) Errors() <-chan error { return s.errors }
+
+func (s *Server) Listeners() []control.ListenerStatus {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	listeners := make([]control.ListenerStatus, 0, len(s.endpoints))
+	for _, e := range s.endpoints {
+		listeners = append(listeners, control.ListenerStatus{ProxyID: e.id, Address: e.listener.Addr().String(), Ready: !s.closing})
+	}
+	return listeners
+}
 
 func (s *Server) track(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

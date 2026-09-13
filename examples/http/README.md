@@ -18,8 +18,10 @@ See [specification section 7.1](../../specific.md) for ordering and reload rules
 Use `config.Load(rootFilename)` for either layout. `config.Parse(data, filename)`
 accepts standalone YAML and rejects `include`. In the control service,
 `ReloadFile(rootFilename)` rereads the complete file set; `Reload(data, filename)`
-remains the standalone API. CLI validate/serve load the entire file set now;
-runtime reload commands follow in phase 4.
+remains the standalone API. CLI `reload --config FILE` sends the absolute root
+path over the admin socket; the serving process rereads the entire tree and
+returns the actual applied revision. See [runtime administration](../../README.md#runtime-administration)
+for socket selection, permissions, timeout and counter scopes.
 
 Includes resolve relative to the root; inline proxies come first, followed by
 include-list order and lexically sorted glob matches. Missing files, empty glob

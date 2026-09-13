@@ -11,12 +11,12 @@ import (
 )
 
 type Info struct {
-	RunID           string
-	Revision        uint64
-	Enabled         bool
-	ControlSequence uint64
-	AppliedAt       time.Time
-	StateChangedAt  time.Time
+	RunID           string    `json:"run_id"`
+	Revision        uint64    `json:"config_revision"`
+	Enabled         bool      `json:"injection_enabled"`
+	ControlSequence uint64    `json:"control_sequence"`
+	AppliedAt       time.Time `json:"applied_at"`
+	StateChangedAt  time.Time `json:"state_changed_at"`
 }
 
 type revision struct {
@@ -46,8 +46,8 @@ type Service struct {
 }
 
 type Result struct {
-	Changed bool
-	Info    Info
+	Changed bool `json:"changed"`
+	Info    Info `json:"info"`
 }
 
 func New(document *config.Document) (*Service, error) {

@@ -25,7 +25,7 @@ func TestCommands(t *testing.T) {
 			t.Fatal("no output")
 		}
 	}
-	for _, args := range [][]string{{"status"}, {"serve"}, {"validate", "--start-enabled"}, {"validate", "--config", "missing.yaml"}, {"serve", "--config", "x", "extra"}} {
+	for _, args := range [][]string{{"unknown"}, {"serve"}, {"validate", "--start-enabled"}, {"validate", "--config", "missing.yaml"}, {"serve", "--config", "x", "extra"}, {"status", "--admin-socket", "/nonexistent/faultline.sock"}, {"status", "--timeout", "0s"}} {
 		if err := run(context.Background(), args, io.Discard, io.Discard); err == nil {
 			t.Fatalf("accepted %v", args)
 		}
@@ -58,12 +58,17 @@ func TestServeIncludesAndStartEnabled(t *testing.T) {
 			}
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			args := []string{"serve", "--config", root}
+			socketDir, err := os.MkdirTemp("/tmp", "faultline-cli-")
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { os.RemoveAll(socketDir) })
+			args := []string{"serve", "--config", root, "--admin-socket", filepath.Join(socketDir, "admin.sock")}
 			if enabled {
 				args = append(args, "--start-enabled")
 			}
 			ready, done := make(readyWriter, 1), make(chan error, 1)
-			go func() { done <- run(ctx, args, ready, io.Discard) }()
+			go func() { done <- run(ctx, args, io.Discard, ready) }()
 			select {
 			case msg := <-ready:
 				if !strings.Contains(msg, fmt.Sprintf("injection_enabled=%t", enabled)) {

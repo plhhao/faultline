@@ -125,7 +125,7 @@ func TestUpstreamTLSFailuresAreNatural(t *testing.T) {
 				t.Fatal(status)
 			}
 			r := receive(t, reports)
-			if r.Outcome != "upstream_error" || !r.NotReached || r.Applied || attempts.Load() != 0 {
+			if r.Outcome != "upstream_error" || r.ErrorKind != "upstream_tls" || !r.NotReached || r.Applied || attempts.Load() != 0 {
 				t.Fatalf("%+v", r)
 			}
 		})
