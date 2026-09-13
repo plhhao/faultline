@@ -7,10 +7,10 @@ and records what happened.
 The first milestone targets HTTP/1.1 over HTTP and HTTPS, with file-based
 configuration, runtime injection controls, and one fault action per request.
 
-**Status:** phases 1–2 are implemented: strict YAML configuration, runtime
+**Status:** phases 1–3 are implemented: strict YAML configuration, runtime
 snapshots, rule selection, CLI validate/serve, and HTTP/HTTPS forwarding with
-lifecycle hooks. Fault actions (phase 3), runtime administration and the recorder
-(phase 4) are pending.
+lifecycle hooks, and all five MVP fault actions. Runtime administration and the
+recorder (phase 4) are pending.
 
 ## Run locally
 
@@ -26,10 +26,35 @@ are prepared before serving; listener readiness does not establish app or
 upstream readiness. Ctrl+C/SIGTERM cancels active flows and closes listeners.
 
 Injection starts disabled, so configured rules do not affect startup traffic or
-consume selector counters. `serve --start-enabled` enables selection, but actions
-are not implemented yet: a selected action returns **501** when its phase is
-reached, with no claim that the configured fault was applied. Only `validate`
+consume selector counters. `serve --start-enabled` enables configured fault
+actions immediately. Only `validate`
 and `serve` are available; enable/disable/reload/status commands come in phase 4.
+
+```sh
+rtk proxy ./bin/faultline serve --config examples/http/faultline.yaml --start-enabled
+```
+
+## Available faults
+
+| Action | Phase | Behavior |
+| --- | --- | --- |
+| `delay` | Before request or after final upstream headers | Wait `duration`, then continue; deadlines/cancellation can stop the wait. |
+| `respond` | Before request | Return configured status/body without calling upstream. |
+| `close_connection` | Before request or after final upstream headers | Cancel upstream and close the client connection; no guaranteed TCP RST. |
+| `hold_request` | Before request | Withhold the request from upstream; hold the client until cancellation or `max_duration`, then close. |
+| `hold_response` | After final upstream headers | Cancel/close upstream immediately; withhold the final response until cancellation or `max_duration`, then close. |
+
+`respond` suppresses body bytes for HEAD and statuses 204/205/304. `hold_request`
+reads and discards an incoming upload with bounded memory to detect disconnects.
+Delay does not drain bodies into memory; it applies backpressure. During an unread
+upload, client disconnect detection can wait until body I/O resumes; the flow
+deadline and server shutdown still bound the wait.
+
+If the client timeout is shorter than the hold duration, the client sees a timeout;
+otherwise it sees the connection close. A selected after-headers fault cannot run
+if upstream fails before those headers arrive. Canceling upstream does not prove
+its business work was rolled back. An applied delay/hold means the wait started,
+even if its final report records cancellation before the configured duration.
 
 ## HTTP behavior
 
@@ -99,7 +124,7 @@ project is added to Git. Remove each placeholder when its directory gains files.
   and seeded randomness per rule; it performs no protocol I/O.
 - `proxy/http` owns HTTP connections and streaming, exposing the lifecycle
   points and capabilities needed to execute a fault.
-- `fault` will implement actions using those capabilities, honoring cancellation
+- `fault` implements actions using those capabilities, honoring cancellation
   and deadlines.
 - `recorder` will record decisions and outcomes with bounded resource use.
 
@@ -125,8 +150,8 @@ rtk proxy go test -race ./...
 rtk proxy go vet ./...
 ```
 
-These checks cover core packages, CLI behavior and real HTTP/TLS integration.
-They do not establish fault execution or end-to-end MVP acceptance. If the workspace sandbox blocks
+These checks cover core packages, CLI behavior, fault execution and real HTTP/TLS
+integration. Full MVP acceptance and resource benchmarks remain in phase 5. If the workspace sandbox blocks
 the default Go build cache, prefix the Go invocation with
 `env GOCACHE=/private/tmp/faultline-go-build` after `rtk proxy`.
 Integration tests require permission to bind localhost TCP ports.

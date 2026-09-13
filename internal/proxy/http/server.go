@@ -109,7 +109,7 @@ func (s *Server) track(next http.Handler) http.Handler {
 	})
 }
 
-// Close cancels active flows, including hijacked connections, rather than draining.
+// Close cancels active flows and closes connections instead of draining requests.
 func (s *Server) Close() {
 	s.once.Do(func() {
 		s.mu.Lock()

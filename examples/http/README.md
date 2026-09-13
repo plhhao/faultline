@@ -3,9 +3,9 @@
 [faultline.yaml](faultline.yaml) is a complete, validated configuration example.
 Use `faultline validate --config examples/http/faultline.yaml` to validate it,
 or `faultline serve --config examples/http/faultline.yaml` to forward traffic
-from port 8080 to an upstream on port 9000. Injection starts disabled. Phase 2
-provides selection hooks; actual fault actions arrive in phase 3. Until then,
-`--start-enabled` returns 501 when a selected action reaches its phase.
+from port 8080 to an upstream on port 9000. Injection starts disabled. Add
+`--start-enabled` to execute configured faults immediately. All five MVP actions
+are implemented; see [action behavior](../../README.md#available-faults).
 
 Multi-file loading is implemented in [P01a](../../plans/01-core/04-multi-file-config.md).
 See the runnable loader example [multi-file/faultline.yaml](multi-file/faultline.yaml).
@@ -45,6 +45,12 @@ is atomic, filesystem edits across multiple files are not a transaction.
 | `select` | Exactly one of probability `[0,1]`, positive `nth` or `every` |
 | `fault` | Explicit action/phase and action-specific parameters required |
 | `respond.body` | Empty string; status must be 200–599 |
+
+`delay` requires a positive `duration`; `hold_request`/`hold_response` require a
+positive `max_duration`. The flow's `request_timeout` can end either wait earlier.
+`respond` sends no body bytes for HEAD or 204/205/304, even if configured. For HEAD
+with a body-permitted status, Content-Length describes the configured body; 205
+uses Content-Length 0. `close_connection` takes no timing or response parameters.
 
 These initial resource defaults are configuration values, not measured capacity
 or a throughput SLA. The HTTP adapter enforces a process-wide inflight limit

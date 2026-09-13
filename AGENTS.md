@@ -8,7 +8,7 @@ Use [implementation plans](plans/README.md) for phase order, feature dependencie
 
 ## Project Structure & Module Organization
 
-Faultline is a Go network-failure testing proxy. Core, CLI validate/serve and HTTP/HTTPS forwarding are implemented; fault actions and runtime administration are pending. Follow `specific.md` for the agreed HTTP/HTTPS MVP and future roadmap.
+Faultline is a Go network-failure testing proxy. Core, CLI validate/serve, HTTP/HTTPS forwarding and MVP fault actions are implemented; runtime administration and recorder are pending. Follow `specific.md` for the agreed HTTP/HTTPS MVP and future roadmap.
 
 - `cmd/faultline/`: CLI entry point and component wiring.
 - `internal/config/`: configuration parsing and validation.

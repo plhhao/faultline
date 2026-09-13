@@ -26,7 +26,7 @@ Race tests, vet, build CLI và smoke validate/help pass. Các test mạng cần 
 localhost; lần chạy sandbox bị chặn đã được chạy lại thành công với quyền đó.
 
 Upstream connection mới mỗi request để tránh transport retry; downstream vẫn
-keep-alive. Shutdown hủy flow đang chạy. Chưa có fault executor production:
-`--start-enabled` bật selection nhưng action được chọn trả 501 tại phase, không
-ghi applied. Phase 3 hiện thực action, phase 4 bổ sung admin CLI và recorder.
+keep-alive. Shutdown hủy flow đang chạy. Tại mốc phase 2, action chưa có executor
+trả 501 khi tới phase. [Phase 3](../03-fault-actions/README.md) đã bổ sung executor
+production: `--start-enabled` thực thi action. Phase 4 bổ sung admin CLI và recorder.
 Reset lượt test riêng vẫn là tính năng tương lai, không đổi semantics counter.

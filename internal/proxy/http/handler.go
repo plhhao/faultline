@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -43,9 +44,12 @@ type handler struct {
 
 type flow struct {
 	writer         http.ResponseWriter
+	conn           net.Conn
+	method         string
 	cancelUpstream context.CancelFunc
 	body           io.ReadCloser
 	terminal       bool
+	disconnected   bool
 }
 
 func (f *flow) CancelUpstream() {
@@ -60,6 +64,22 @@ func (f *flow) Respond(status int, body string) error {
 		return errors.New("flow already completed")
 	}
 	f.terminal = true
+	if status == http.StatusNoContent || status == http.StatusNotModified || status == http.StatusResetContent {
+		if status == http.StatusResetContent {
+			f.writer.Header().Set("Content-Length", "0")
+		}
+		f.writer.WriteHeader(status)
+		return nil
+	}
+	// A known length keeps early responses complete even when an unfinished upload is closed.
+	f.writer.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	if f.method == http.MethodHead {
+		if body != "" {
+			f.writer.Header().Set("Content-Type", http.DetectContentType([]byte(body)))
+		}
+		f.writer.WriteHeader(status)
+		return nil
+	}
 	f.writer.WriteHeader(status)
 	_, err := io.WriteString(f.writer, body)
 	return err
@@ -69,12 +89,9 @@ func (f *flow) CloseConnection() error {
 	if f.terminal {
 		return errors.New("flow already completed")
 	}
-	conn, _, err := http.NewResponseController(f.writer).Hijack()
-	if err != nil {
-		return err
-	}
 	f.terminal = true
-	return conn.Close()
+	f.disconnected = true
+	return f.conn.Close()
 }
 
 var errTerminal = errors.New("flow completed by executor")
@@ -126,16 +143,23 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	upload.complete.Store(r.Body == nil || r.Body == http.NoBody)
 	r.Body = upload
 	upstreamCtx, cancelUpstream := context.WithCancel(ctx)
-	f := &flow{writer: w, cancelUpstream: cancelUpstream}
+	f := &flow{writer: w, conn: conn, method: r.Method, cancelUpstream: cancelUpstream}
 	report := Report{FlowID: rand.Text(), Info: snapshot.Info(), Outcome: "completed"}
+	var discarded chan struct{}
 	defer func() {
 		// Transport may still be reading an upload after an early upstream response.
 		if !upload.complete.Load() {
-			http.NewResponseController(w).Flush()
+			if !f.disconnected && ctx.Err() == nil {
+				http.NewResponseController(w).Flush()
+			}
 			conn.Close()
 		}
 		f.CancelUpstream()
-		if ctx.Err() != nil {
+		if discarded != nil {
+			<-discarded
+		}
+		// Intentional connection closure may itself cancel the request context.
+		if ctx.Err() != nil && (!f.disconnected || report.Err != nil) {
 			report.Outcome, report.Err = "canceled", ctx.Err()
 		}
 		report.NotReached = report.Decision.Selected && !report.Reached
@@ -158,6 +182,14 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if h.options.Executor == nil {
 			return fault.ErrUnavailable
 		}
+		if report.Decision.Fault.Action == "hold_request" && !upload.complete.Load() {
+			// Reading and discarding the withheld upload lets net/http detect client disconnects.
+			discarded = make(chan struct{})
+			go func() {
+				defer close(discarded)
+				io.Copy(io.Discard, upload)
+			}()
+		}
 		var err error
 		report.Applied, err = h.options.Executor.Execute(ctx, report.Decision.Fault.Clone(), f)
 		if err != nil {
@@ -171,6 +203,11 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	fail := func(w http.ResponseWriter, _ *http.Request, err error) {
 		if errors.Is(err, errTerminal) {
+			return
+		}
+		if ctx.Err() != nil {
+			report.Err = ctx.Err()
+			f.CloseConnection()
 			return
 		}
 		status := http.StatusBadGateway

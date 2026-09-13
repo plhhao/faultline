@@ -262,7 +262,7 @@ Không nên cho các tỷ lệ độc lập chồng lên nhau mà thiếu semant
 
 ## 7. Cấu hình khai báo — schema đề xuất
 
-Schema và validation đã được hiện thực trong phase 1; CLI và adapter vẫn chưa được implement. Defaults và quy tắc parse cụ thể nằm trong [hướng dẫn config](examples/http/README.md). Ví dụ dưới đây chỉ khai báo tính năng MVP để tránh nhầm với roadmap.
+Schema và validation đã được hiện thực trong phase 1; CLI validate/serve và HTTP/HTTPS adapter ở phase 2, các fault action ở phase 3. Điều khiển runtime qua CLI và recorder còn ở phase 4. Defaults và quy tắc parse cụ thể nằm trong [hướng dẫn config](examples/http/README.md). Ví dụ dưới đây chỉ khai báo tính năng MVP để tránh nhầm với roadmap.
 
 ```yaml
 api_version: faultline/v1alpha1

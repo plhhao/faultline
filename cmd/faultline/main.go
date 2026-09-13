@@ -12,6 +12,7 @@ import (
 
 	"faultline/internal/config"
 	"faultline/internal/control"
+	"faultline/internal/fault"
 	httpproxy "faultline/internal/proxy/http"
 )
 
@@ -26,7 +27,7 @@ func main() {
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
-		fmt.Fprintln(stdout, "Usage: faultline <validate|serve> --config FILE\n\nserve supports --start-enabled (fault executors arrive in phase 3).")
+		fmt.Fprintln(stdout, "Usage: faultline <validate|serve> --config FILE\n\nserve supports --start-enabled to inject configured faults at startup.")
 		return nil
 	}
 	command := args[0]
@@ -38,7 +39,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	filename := flags.String("config", "", "root YAML configuration file")
 	var enabled bool
 	if command == "serve" {
-		flags.BoolVar(&enabled, "start-enabled", false, "enable selection at startup; unavailable actions return 501")
+		flags.BoolVar(&enabled, "start-enabled", false, "enable fault injection at startup")
 	}
 	if err := flags.Parse(args[1:]); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -62,7 +63,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	service.SetEnabled(enabled)
-	server, err := httpproxy.Start(service, httpproxy.Options{})
+	server, err := httpproxy.Start(service, httpproxy.Options{Executor: fault.Builtin{}})
 	if err != nil {
 		return err
 	}

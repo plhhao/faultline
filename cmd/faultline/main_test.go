@@ -52,7 +52,7 @@ func TestServeIncludesAndStartEnabled(t *testing.T) {
 			if err := os.WriteFile(root, []byte("api_version: faultline/v1alpha1\ninclude: [proxy.yaml]\n"), 0600); err != nil {
 				t.Fatal(err)
 			}
-			fragment := fmt.Sprintf("proxies:\n- id: test\n  protocol: http1\n  listen: '%s'\n  upstream: '%s'\n  rules:\n  - id: chosen\n    select: {probability: 1}\n    fault: {phase: before_upstream_request, action: close_connection}\n", addr, upstream.URL)
+			fragment := fmt.Sprintf("proxies:\n- id: test\n  protocol: http1\n  listen: '%s'\n  upstream: '%s'\n  rules:\n  - id: chosen\n    select: {probability: 1}\n    fault: {phase: before_upstream_request, action: respond, status: 503, body: injected}\n", addr, upstream.URL)
 			if err := os.WriteFile(filepath.Join(dir, "proxy.yaml"), []byte(fragment), 0600); err != nil {
 				t.Fatal(err)
 			}
@@ -79,15 +79,20 @@ func TestServeIncludesAndStartEnabled(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			io.Copy(io.Discard, resp.Body)
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
 			resp.Body.Close()
 			c.CloseIdleConnections()
 			want := 200
+			wantBody := "ok"
 			if enabled {
-				want = 501
+				want = 503
+				wantBody = "injected"
 			}
-			if resp.StatusCode != want {
-				t.Fatal(resp.StatusCode)
+			if resp.StatusCode != want || string(body) != wantBody {
+				t.Fatalf("status=%d body=%q", resp.StatusCode, body)
 			}
 			cancel()
 			select {
