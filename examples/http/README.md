@@ -1,8 +1,11 @@
 # HTTP configuration
 
 [faultline.yaml](faultline.yaml) is a complete, validated configuration example.
-Phase 1 provides `config.Load` and `config.Parse` for use inside the Go module;
-the CLI and HTTP adapter are not implemented yet.
+Use `faultline validate --config examples/http/faultline.yaml` to validate it,
+or `faultline serve --config examples/http/faultline.yaml` to forward traffic
+from port 8080 to an upstream on port 9000. Injection starts disabled. Phase 2
+provides selection hooks; actual fault actions arrive in phase 3. Until then,
+`--start-enabled` returns 501 when a selected action reaches its phase.
 
 Multi-file loading is implemented in [P01a](../../plans/01-core/04-multi-file-config.md).
 See the runnable loader example [multi-file/faultline.yaml](multi-file/faultline.yaml).
@@ -15,7 +18,8 @@ See [specification section 7.1](../../specific.md) for ordering and reload rules
 Use `config.Load(rootFilename)` for either layout. `config.Parse(data, filename)`
 accepts standalone YAML and rejects `include`. In the control service,
 `ReloadFile(rootFilename)` rereads the complete file set; `Reload(data, filename)`
-remains the standalone API. CLI integration follows in phase 2/4.
+remains the standalone API. CLI validate/serve load the entire file set now;
+runtime reload commands follow in phase 4.
 
 Includes resolve relative to the root; inline proxies come first, followed by
 include-list order and lexically sorted glob matches. Missing files, empty glob
@@ -43,7 +47,8 @@ is atomic, filesystem edits across multiple files are not a transaction.
 | `respond.body` | Empty string; status must be 200–599 |
 
 These initial resource defaults are configuration values, not measured capacity
-or a throughput SLA. Their enforcement begins with the HTTP adapter.
+or a throughput SLA. The HTTP adapter enforces a process-wide inflight limit
+(503 on overflow) and request deadlines, including body I/O and hooks.
 
 IDs use ASCII letters, digits, dot, underscore or hyphen and are unique within
 their scope. Header names are case-insensitive; values are exact strings. Quote
@@ -61,8 +66,9 @@ field without echoing its value. Boolean values use `true` or `false`.
 Listener TLS requires `tls.cert_file` and `tls.key_file`; upstream custom trust
 uses `upstream_tls.ca_file` with an HTTPS origin. Paths resolve relative to the
 file declaring that proxy, not the current working directory. Cert/key must parse and
-match; the CA file must contain parseable PEM certificates. Hostname/trust
-verification during connections belongs to the later TLS adapter.
+match; the CA file must contain parseable PEM certificates. The TLS adapter
+verifies upstream hostname/trust using system CA plus the configured CA, and
+negotiates HTTP/1.1 only on both sides.
 
 Changing TLS settings, file paths or file contents requires restart. Reload
 compares the validated file digests even if the file names remain unchanged.

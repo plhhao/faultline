@@ -1,6 +1,6 @@
 # P05 — TLS hai phía và HTTP/1.1
 
-- Trạng thái: **Planned**
+- Trạng thái: **Done**
 - Phụ thuộc: [P04](../02-http-proxy/01-cli-and-forwarding.md)
 - Nguồn: [specific.md](../../specific.md), mục 3.1, 7.
 - Nghiệm thu MVP liên quan: AC22, AC23
@@ -25,4 +25,9 @@ Hỗ trợ bốn tổ hợp HTTP/HTTPS với TLS termination và trust hợp l�
 
 Chưa có mTLS, cert hot reload hoặc TLS tunnel semantic matching.
 
-Áp dụng [điều kiện Done](../README.md#theo-dõi-thực-hiện); các kiểm tra trên là kế hoạch, chưa phải kết quả đã chạy.
+## Kết quả VERIFY / REVIEW — 2026-09-13
+
+- Bốn tổ hợp HTTP/HTTPS pass integration test; kiểm tra thực tế HTTP/1.1 hai phía và ALPN dù client/upstream hỗ trợ HTTP/2.
+- Test SNI `localhost`, system trust cộng CA test, sai hostname và CA không tin cậy pass. Lỗi TLS upstream trả 502 và report `upstream_error`, selected sau headers là `not_reached`, không applied.
+- Cert/key test sinh tạm; key hỏng sau config validation làm startup thất bại trước serving. Validation cert/key không khớp được bao phủ bởi regression phase 1.
+- Full race suite, vet và build pass. Review không có insecure skip verification, mTLS, tunnel hoặc cert hot reload. AC22 phần thực thi action vẫn cần P07–P09.

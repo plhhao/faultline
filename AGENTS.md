@@ -8,7 +8,7 @@ Use [implementation plans](plans/README.md) for phase order, feature dependencie
 
 ## Project Structure & Module Organization
 
-Faultline is a Go network-failure testing proxy. The config, control, and engine packages are implemented; the CLI and proxy are pending. Follow `specific.md` for the agreed HTTP/HTTPS MVP and future roadmap.
+Faultline is a Go network-failure testing proxy. Core, CLI validate/serve and HTTP/HTTPS forwarding are implemented; fault actions and runtime administration are pending. Follow `specific.md` for the agreed HTTP/HTTPS MVP and future roadmap.
 
 - `cmd/faultline/`: CLI entry point and component wiring.
 - `internal/config/`: configuration parsing and validation.
@@ -26,7 +26,7 @@ The module is `faultline`, declaring Go 1.26.4. Prefix shell commands with `rtk`
 
 - `rtk proxy go list -m`: verify the module now.
 
-Once the CLI exists:
+CLI commands:
 
 - `rtk proxy go build -o bin/faultline ./cmd/faultline`: build the executable.
 - `rtk proxy go run ./cmd/faultline --help`: inspect implemented CLI usage.
@@ -39,7 +39,7 @@ Available now:
 - `rtk proxy go vet ./...`: run static checks.
 - `rtk proxy go fmt ./...`: format Go packages.
 
-YAML is pinned in `go.mod`; no executable, Dockerfile, or additional linter exists yet.
+YAML is pinned in `go.mod`; no Dockerfile or additional linter exists yet.
 
 ## Coding Style & Architecture
 
@@ -49,7 +49,7 @@ Keep protocol I/O outside `engine`. Adapters provide protocol-specific capabilit
 
 ## Testing Guidelines
 
-Use Go's standard `testing` package. Place unit tests beside implementations in `*_test.go`, with functions named `TestBehavior`. Use table-driven cases where appropriate. Prioritize probability boundaries, reload consistency, cancellation, and resource cleanup. No numeric coverage threshold is established. Core unit tests exist; HTTP integration tests and end-to-end acceptance remain pending.
+Use Go's standard `testing` package. Place unit tests beside implementations in `*_test.go`, with functions named `TestBehavior`. Use table-driven cases where appropriate. Prioritize probability boundaries, reload consistency, cancellation, and resource cleanup. No numeric coverage threshold is established. HTTP/TLS integration tests require localhost TCP binding; end-to-end MVP acceptance remains pending.
 
 ## Commit & Pull Request Guidelines
 

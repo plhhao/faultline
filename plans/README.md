@@ -1,6 +1,6 @@
 # Kế hoạch hiện thực Faultline
 
-Nguồn yêu cầu: [specific.md](../specific.md). **Phase 01 đã Done**, gồm P01–P03 và [P01a — cấu hình nhiều file](01-core/04-multi-file-config.md), snapshot và rule engine. Các plan MVP còn lại chưa hiện thực; các plan sau MVP vẫn Deferred.
+Nguồn yêu cầu: [specific.md](../specific.md). **Phase 01–02 đã Done**: core, [P01a — cấu hình nhiều file](01-core/04-multi-file-config.md), CLI validate/serve, HTTP/HTTPS forwarding và lifecycle hooks. Phase 03–05 chưa hiện thực; các plan sau MVP vẫn Deferred.
 
 ## Các phase
 

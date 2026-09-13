@@ -2,6 +2,11 @@
 
 Completed work following DEFINE → PLAN → BUILD → VERIFY → REVIEW.
 
+## 2026-09-13
+
+- Completed phase 2 (P04–P06): CLI `validate`/`serve` with includes and disabled startup; multi-listener HTTP/HTTPS streaming, HTTP/1.1 negotiation, verified upstream trust/SNI, no-retry transport, inflight/deadline enforcement and cancellation/shutdown cleanup. Added per-request snapshot hooks, protocol-independent executor capabilities and in-process outcome reports in `cmd/faultline/`, `internal/proxy/http/`, `internal/fault/`, with CLI and `tests/integration/` coverage. Updated plans and usage documentation.
+- Verification: full race/coverage suite (`go test -race -coverpkg=./... ./... -timeout 60s`), vet, CLI build and binary help/multi-file validate passed; integration race suite passed again after adding same-connection snapshot assertions. Initial network tests were blocked by sandbox TCP binding and rerun successfully with localhost permission. Reviewed source manually because the graph contains no source nodes; formatting and whitespace checked. Upstream connections are not reused (TCP/TLS cost); production fault actions, admin commands, recorder and Docker remain later phases. `--start-enabled` currently returns 501 for a selected action at its phase, without reporting it applied.
+
 ## 2026-09-12
 
 - Completed P01a and phase 1: `config.Load` supports root includes and proxy fragments, reports duplicate IDs with both source locations, rejects repeated physical files, and resolves TLS paths against the declaring file. Added `control.ReloadFile`, multi-file examples and regression tests; standalone byte parsing explicitly rejects includes.
