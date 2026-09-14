@@ -7,10 +7,11 @@ and records what happened.
 The first milestone targets HTTP/1.1 over HTTP and HTTPS, with file-based
 configuration, runtime injection controls, and one fault action per request.
 
-**Status:** core, HTTP/HTTPS forwarding and all five MVP fault actions are
-implemented. Phase 4 adds local runtime administration and bounded JSON events.
-Host tests and the Docker/OrbStack runtime smoke test have passed; phases 1–4 are complete.
-The payment demo, resource benchmarks and release packaging remain in phase 5.
+**Status:** the HTTP/HTTPS MVP (phases 1–5) is complete: five fault actions, local
+administration, JSON events, payment demo and binary/Docker delivery. See
+[AC1–AC24 evidence](plans/05-mvp-delivery/acceptance.md),
+[resource measurements](plans/05-mvp-delivery/benchmark-results.md) and the
+[runnable lost-response demo](examples/http/paymentdemo/README.md).
 
 ## Run locally
 
@@ -23,7 +24,8 @@ rtk proxy ./bin/faultline serve --config examples/http/faultline.yaml
 Run your upstream at `127.0.0.1:9000`, then send requests to `127.0.0.1:8080`.
 The multi-file example also works with both commands. All files and listeners
 are prepared before serving; listener readiness does not establish app or
-upstream readiness. Ctrl+C/SIGTERM cancels active flows and closes listeners.
+upstream readiness. Ctrl+C/SIGTERM stops admission, drains requests for up to 5s,
+then cancels remaining flows.
 
 Injection starts disabled, so configured rules do not affect startup traffic or
 consume selector counters. `serve --start-enabled` enables configured fault
@@ -62,8 +64,8 @@ flows whose action has started, including old snapshots after disable/reload.
 Disable changes new requests only; it does not end those flows.
 
 In a container, run the admin CLI using `docker exec` and the container's config
-paths. No admin TCP port needs publishing. Production Docker packaging is P15;
-the optional container smoke test below checks mounted config/certificate paths.
+paths. No admin TCP port needs publishing. See [Docker instructions](deploy/docker/README.md)
+for the non-root image, mounted config/certs and local admin commands.
 
 ## Events and counters
 
@@ -88,8 +90,9 @@ queue delivery. `write_errors`, `written_events` and `pending_events` describe
 the sink. Nonzero dropped/write-error/pending counts can mean an incomplete
 artifact. No historical revision or completed-flow map is retained.
 
-Shutdown cancels flows, closes admin/listeners, queues a counters summary and
-flushes events for at most 2s. Missing events/write failures are also reported on stderr.
+Shutdown closes admin/listeners, drains flows for up to 5s, cancels the remainder,
+queues a summary and flushes events for at most 2s. Missing events/write failures
+are also reported on stderr. Allow at least 10s for Docker stop.
 A blocked generic writer may retain one writer goroutine until process exit;
 shutdown reports a flush timeout rather than waiting indefinitely. A failed or
 partial sink write can damage the JSON stream; counters do not make it complete.
@@ -148,6 +151,20 @@ Multi-file configuration with a root file and `include` is implemented in
 [multi-file example](examples/http/multi-file/faultline.yaml) and specification
 section 7.1. Single-file configurations remain supported.
 
+## Runtime defaults
+
+| Limit | Default | Override before startup |
+| --- | --- | --- |
+| Inflight requests, shared by listeners | 1000 | `runtime.max_inflight_requests` |
+| Flow/header/read/write/idle timeouts | 30s | `runtime.request_timeout` |
+| Queued JSON events, plus one in the writer | 1024 | `serve --event-buffer N` |
+| CLI admin timeout | 5s | `--timeout DURATION` |
+| CLI shutdown drain / recorder flush | 5s / 2s | Fixed in this MVP |
+
+These are limits, not measured capacity. Inflight does not cap all TCP connections;
+the proxy targets dev/test workloads. The [action/selector examples](examples/http/faults.yaml)
+cover all five actions plus probability, nth and every selection.
+
 ## Project layout
 
 ```text
@@ -163,7 +180,7 @@ faultline/
 │   │   └── http/           # HTTP/1.1 forwarding, TLS, and lifecycle hooks
 │   └── recorder/           # Structured events, counters, and flow timelines
 ├── examples/
-│   └── http/               # Configuration example; runnable demos come later
+│   └── http/               # Configurations and runnable payment demo
 ├── tests/
 │   └── integration/        # Tests across the proxy, client, and upstream
 ├── deploy/
@@ -174,8 +191,7 @@ faultline/
 └── README.md
 ```
 
-Empty directories contain `.gitkeep` files so they can be tracked when the
-project is added to Git. Remove each placeholder when its directory gains files.
+Remove a `.gitkeep` placeholder when its directory gains real files.
 
 ## Component boundaries
 
@@ -191,8 +207,8 @@ project is added to Git. Remove each placeholder when its directory gains files.
 - `recorder` records decisions and outcomes through a bounded queue, retaining
   run counters independently of event delivery.
 
-Unit tests will live beside the Go files they test. Tests that exercise multiple
-components will live in `tests/integration`. Future protocol adapters will be
+Unit tests live beside the Go files they test. Tests that exercise multiple
+components live in `tests/integration`. Future protocol adapters will be
 added when their implementation begins.
 
 ## Go module
@@ -214,17 +230,18 @@ rtk proxy go vet ./...
 ```
 
 These checks cover core packages, CLI behavior, fault execution and real HTTP/TLS
-integration. Full MVP acceptance and resource benchmarks remain in phase 5. If the workspace sandbox blocks
+integration and the payment demo. See [MVP acceptance](plans/05-mvp-delivery/acceptance.md).
+If the workspace sandbox blocks
 the default Go build cache, prefix the Go invocation with
 `env GOCACHE=/private/tmp/faultline-go-build` after `rtk proxy`.
 Integration tests require permission to bind localhost TCP ports.
 
 The optional container smoke test needs a running Docker daemon. It builds a
-temporary scratch image and checks mounted root/includes/TLS files plus admin
-commands, then removes its own container/image:
+temporary image from the delivery Dockerfile and checks mounted root/includes/TLS
+files, admin commands and the payment demo, then removes its own containers/image:
 
 ```sh
-rtk proxy env FAULTLINE_DOCKER_TEST=1 go test ./tests/integration -run '^TestContainerRuntime$' -timeout 180s
+rtk proxy env FAULTLINE_DOCKER_TEST=1 go test ./tests/integration -run '^TestContainerRuntime$' -timeout 360s
 ```
 
 See [configuration defaults and example](examples/http/README.md) and

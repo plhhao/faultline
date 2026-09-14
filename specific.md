@@ -1,6 +1,6 @@
 # Faultline — Đặc tả sản phẩm và hành vi hệ thống
 
-Trạng thái: **Đã cập nhật theo review lần 2; đủ thông tin để chuyển sang thiết kế/triển khai MVP.**
+Trạng thái: **MVP phase 01–05 đã hiện thực và nghiệm thu AC1–AC24 (2026-09-14).** Xem [bằng chứng và giới hạn](plans/05-mvp-delivery/acceptance.md).
 
 Tài liệu này là đặc tả chính của dự án, ưu tiên nhu cầu hiện tại: một proxy nhận cấu hình, chuyển tiếp traffic và tạo lỗi với tỉ lệ có thể thay đổi khi đang chạy. Các mục ghi **đề xuất** là phương án mặc định để thảo luận; câu hỏi cần quyết định nằm ở cuối file.
 
@@ -8,7 +8,9 @@ Các điểm đã chốt: ưu tiên HTTP và inject lỗi; cấu hình mới ch�
 
 Review lần 2 chốt thêm: tạm thời hỗ trợ HTTPS thông thường, để mTLS/HTTP/2 sau MVP; giữ một action/request. Không còn câu hỏi về phạm vi cần người dùng trả lời trước khi triển khai. Các chi tiết còn ghi **đề xuất**, như schema/CLI/defaults, là phương án thiết kế để hiện thực và kiểm chứng, không phải yêu cầu đã được người dùng xác nhận từng phần.
 
-Giải thích về truncate request/response nằm ở mục 5.4. Đây là lỗi truyền body không hoàn tất có giá trị kiểm thử; vẫn thuộc phần mở rộng sau MVP, chưa được thêm vào phạm vi chỉ vì được hỏi tới.
+Giải thích về truncate request/response nằm ở mục 5.4. Đây là lỗi truyền body không hoàn tất có giá trị kiểm thử; đã được chọn cho phase 06 sau MVP cùng throttle, ở cả chiều request và response.
+
+Phạm vi phase 06 đã chốt ngày 2026-09-14: gRPC unary, HTTP/2 cả hai phía qua TLS hoặc không TLS khi cấu hình tường minh, mTLS tùy chọn độc lập ở mỗi phía, truncate và throttle cho request/response trên HTTP và gRPC. Giữ một action/flow; TLS thay đổi cần restart. Streaming gRPC và hot reload certificate tiếp tục để sau. Xem [kế hoạch phase 06](plans/06-protocol-extensions/README.md) cho contract, thứ tự và tiêu chí nghiệm thu; các tính năng này **Planned, chưa hiện thực**, không thay đổi phạm vi MVP đã nghiệm thu.
 
 ## 1. Bài toán và mục tiêu
 
@@ -311,7 +313,7 @@ Semantics của ví dụ:
 - Request không match rule nào được chuyển tiếp bình thường.
 - Header dùng match vẫn được chuyển tiếp; chỉ thêm thao tác strip nếu có yêu cầu riêng.
 - Upstream MVP nhận origin `http://host:port` hoặc `https://host:port`, giữ path/query của request; không hỗ trợ rewrite hoặc load balancing.
-- Các giá trị 1.000 inflight, 30 giây timeout, 10 giây hold là ví dụ, chưa phải chỉ tiêu hiệu năng hoặc defaults đã chốt.
+- Defaults hiện thực: 1.000 inflight và 30 giây timeout. Hold duration là tham số từng rule; các giá trị không phải chỉ tiêu hiệu năng.
 
 Ví dụ khai báo **một phần tử thay thế trong `proxies`** để dùng HTTPS hai phía (không phải file config hoàn chỉnh):
 
@@ -536,16 +538,16 @@ Giai đoạn assertions phải hỗ trợ kết quả **không đủ dữ liệu
 - Listener bind loopback mặc định; deployment container có thể cấu hình địa chỉ bind rõ ràng. Kênh quản trị dùng Unix socket riêng với quyền filesystem, không mở cổng TCP quản trị.
 - Admin channel tách biệt traffic được inject lỗi. Khi đưa lên server cho tester, bổ sung authentication, authorization và audit thay đổi config.
 - Delay/hold phải hủy được khi client cancel, request deadline hoặc process shutdown; không để goroutine/timer tồn tại vô hạn.
-- Cần giới hạn inflight, thời gian đọc headers, idle connection, tổng thời gian request và hàng đợi recorder. Chi tiết defaults sẽ chốt sau khi biết tải mục tiêu.
+- Defaults: `max_inflight_requests: 1000`, `request_timeout: 30s` cho deadline flow và giới hạn headers/read/write/idle; recorder queue 1024 qua `--event-buffer`. Override trước startup; inflight không giới hạn tổng TCP connections.
 - Khi vượt inflight limit, MVP đề xuất trả 503 do proxy overload và ghi riêng; không đưa request bị từ chối này vào eligible counters của rule.
 - `request_timeout` là deadline toàn flow; nếu hết trước fault duration thì ghi proxy timeout, không báo action đã hoàn tất đúng duration.
 - Proxy không tự retry upstream để tránh làm sai số attempt và side effect đang kiểm thử.
-- Khi shutdown, ngừng nhận flow mới, chờ flow hiện tại trong thời hạn giới hạn rồi cancel phần còn lại.
+- CLI shutdown ngừng nhận flow mới, chờ tối đa 5s rồi cancel phần còn lại; recorder flush tối đa 2s. Docker stop nên cho ít nhất 10s.
 - Faultline dừng/crash thì đường gọi qua proxy không còn hoạt động; chưa có bypass hoặc high availability tự động.
 
 **Trả lời Q10:** đúng, RPS, connection, payload và timeout phụ thuộc test case. Không cần chốt một tải cố định để bắt đầu MVP. Cần phân biệt tham số test case với khả năng và giới hạn của proxy: nếu proxy tự quá tải thì lỗi đó phải được phân biệt với lỗi người dùng muốn inject.
 
-Đề xuất cung cấp defaults có tài liệu, cho override giới hạn qua config trước mỗi lần chạy và ghi rõ limits trong kết quả benchmark. Một test có nhiều request bị giữ lâu cần inflight limit khác test request ngắn. Defaults cụ thể được chọn khi implement và đo, các số trong YAML chỉ minh họa; không đặt ra throughput SLA khi chưa có dữ liệu.
+Defaults và override đã có tài liệu tại [README](README.md#runtime-defaults), kèm [benchmark và recovery](plans/05-mvp-delivery/benchmark-results.md). Một test có nhiều request bị giữ lâu cần inflight limit khác test request ngắn. Số đo cục bộ không phải throughput SLA.
 
 Benchmark pass-through so với gọi trực tiếp trong cùng môi trường, sau đó đo khi có nhiều delay/hold, ghi tài nguyên máy và config đi kèm. Binary/Docker đều là hình thức phát hành MVP; hệ điều hành/kiến trúc binary sẽ xác định theo môi trường phát triển khi triển khai.
 
@@ -585,7 +587,7 @@ Demo trọng tâm dùng payment service test có thể kiểm tra dữ liệu đ
 | Giai đoạn | Kết quả bàn giao | Điều kiện chuyển tiếp |
 | --- | --- | --- |
 | A — Proxy MVP | HTTP/1.1 qua HTTP/HTTPS, binary/Docker, YAML/CLI, enable/disable, một action/request, selector, reload, JSON events, payment demo | Đạt các AC phía trên; chưa cần mTLS, HTTP/2 hoặc truncate body |
-| B — Mở rộng core | Adapter thứ hai: TCP hoặc gRPC theo nhu cầu thực tế; HTTP/2 nếu chọn gRPC | Chứng minh thêm protocol không viết lại rule/config engine |
+| B — Mở rộng core | gRPC unary; HTTP/2 hai phía, mTLS tùy chọn; truncate/throttle request/response theo phase 06 | Chứng minh thêm protocol không viết lại rule/config engine |
 | C — Trải nghiệm tester | API/UI chỉnh cấu hình, revision, apply result, quyền và audit | Tester tự chỉnh tỉ lệ và kiểm tra bản đang chạy mà không sửa file trên server |
 | D — Failure testing | Scenario timeline, correlation, assertions, report và exit code CI | Phân biệt PASS/FAIL/inconclusive và tái hiện demo bằng scenario |
 | E — Semantic adapters | PostgreSQL, AMQP hoặc Kafka theo ưu tiên sử dụng | Mỗi adapter có use case, capability matrix và integration test riêng |

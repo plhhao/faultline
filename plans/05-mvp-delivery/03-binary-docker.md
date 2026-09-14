@@ -1,6 +1,6 @@
 # P15 — Binary, Docker và bàn giao MVP
 
-- Trạng thái: **Planned**
+- Trạng thái: **Done (2026-09-14)**
 - Phụ thuộc: [P14](../05-mvp-delivery/02-payment-demo.md)
 - Nguồn: [specific.md](../../specific.md), mục 7, 11, 12.
 - Nghiệm thu MVP liên quan: AC24
@@ -27,4 +27,16 @@ Bàn giao cách build/run tái lập cho binary và Docker, hoàn tất gate MVP
 
 Không công bố image hoặc tạo release từ việc viết plan; khi thực thi phải theo phạm vi phát hành được giao.
 
-Áp dụng [điều kiện Done](../README.md#theo-dõi-thực-hiện); các kiểm tra trên là kế hoạch, chưa phải kết quả đã chạy.
+## Kết quả VERIFY/REVIEW
+
+- Build native macOS arm64, cross-build Linux arm64 và build source-only export pass.
+  Dockerfile Go 1.26.4 build source, runtime scratch/non-root 65532 có CA hệ thống.
+- `TestContainerRuntime` pass: validate/serve/status/enable/reload/disable, HTTPS
+  traffic, invalid cert startup, config một/nhiều file tương đương, missing fragment
+  và duplicate ID báo source/giữ snapshot, stop exit 0; payment demo hai biến thể pass.
+- Native binary/admin/demo driver pass; full race suite, vet, binary help và năm
+  example roots pass. Hướng dẫn tại [Docker delivery](../../deploy/docker/README.md).
+- Review: mount path/quyền non-root rõ ràng, không mở admin TCP, không commit key thật.
+  Version tag base image có thể đổi contents; không cam kết byte-identical rebuild.
+  Chưa publish image/release; kiến trúc khác cần runtime verification riêng.
+- [AC1–AC24](acceptance.md) đủ bằng chứng; MVP Done trong phạm vi đã chốt.

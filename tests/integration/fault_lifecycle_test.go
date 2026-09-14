@@ -142,8 +142,10 @@ func TestManyHeldFlowsShutdown(t *testing.T) {
 	for range count {
 		receive(t, entered)
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer cancel()
 	stopped := make(chan struct{}, 1)
-	go func() { server.Close(); stopped <- struct{}{} }()
+	go func() { server.Shutdown(ctx); stopped <- struct{}{} }()
 	receive(t, stopped)
 	for range count {
 		if err := receive(t, done); err == nil {

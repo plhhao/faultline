@@ -121,6 +121,19 @@ func (s *Server) track(next http.Handler) http.Handler {
 	})
 }
 
+// Shutdown drains accepted requests until ctx expires, then cancels remaining flows.
+func (s *Server) Shutdown(ctx context.Context) {
+	s.mu.Lock()
+	s.closing = true
+	s.mu.Unlock()
+	var drain sync.WaitGroup
+	for _, e := range s.endpoints {
+		drain.Go(func() { e.server.Shutdown(ctx) })
+	}
+	drain.Wait()
+	s.Close()
+}
+
 // Close cancels active flows and closes connections instead of draining requests.
 func (s *Server) Close() {
 	s.once.Do(func() {

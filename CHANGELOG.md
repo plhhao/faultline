@@ -2,6 +2,13 @@
 
 Completed work following DEFINE → PLAN → BUILD → VERIFY → REVIEW.
 
+## 2026-09-14
+
+- Updated phase 6 planning in `plans/06-protocol-extensions/`, `plans/README.md` and `specific.md`: P17 HTTP/2 on both legs with optional per-leg mTLS → P16 unary gRPC → P18 request/response truncate then throttle for HTTP and gRPC. Defined 15 acceptance criteria, TLS restart behavior, stream scope, verification matrix and deferred streaming/certificate rotation; all three plans are Planned, not implemented. Verified 84 local links/anchors, plan statuses, workflow sections, acceptance IDs and whitespace; reviewed scope/dependencies and specification consistency. Runtime tests were not run for this documentation-only update.
+
+- Completed phase 5 (P13–P15) and MVP AC1–AC24: bounded graceful shutdown in `internal/proxy/http/` and CLI; resource recovery/timeout tests and bounded benchmarks; payment dependency/retry driver in `examples/http/paymentdemo/`; non-root source-built Docker image in `deploy/docker/`. Binary and Docker demos both produce two payments without idempotency and one with it after two lost-response timeouts. Added action/selector examples, delivery guidance, acceptance mapping and measured benchmark results; updated specification and plans.
+- Verification: full `go test -race ./... -timeout 120s`, vet, native macOS arm64 build, Linux arm64 cross-build, source-only export build, binary help and five example validations passed. Delivery Docker smoke passed config/TLS/admin/reload rejection, payment variants and clean exit; extended binary CLI and 24-held-flow shutdown tests passed separately under race. Benchmark passed three fixed 500-attempt samples at one/eight workers. Reviewed code, cleanup, documentation links and formatting. Measurements are local dev samples, not capacity guarantees; no image/release published and post-MVP protocols/UI remain deferred.
+
 ## 2026-09-13
 
 - Completed phase 4 (P10–P12) after Docker/OrbStack became available. `tests/integration/container_test.go` passed three consecutive runs: mounted root/includes/TLS, startup readiness/disabled state, runtime commands, changed/no-op reload, duplicate-ID rejection preserving revision/state, and shutdown exit code 0. Fixture writes use rename and read-only validation waits for bind-mount visibility before reload; admin mutations still have no retry. Test-owned images/containers are cleaned up. Reviewed response assertions and updated phase plans, README and AGENTS; release packaging and full MVP acceptance remain phase 5.

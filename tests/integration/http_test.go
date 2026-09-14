@@ -21,7 +21,7 @@ import (
 	httpproxy "faultline/internal/proxy/http"
 )
 
-func address(t *testing.T) string {
+func address(t testing.TB) string {
 	t.Helper()
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

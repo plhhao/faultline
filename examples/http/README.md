@@ -1,5 +1,9 @@
 # HTTP configuration
 
+For a complete scenario, use the [payment lost-response demo](paymentdemo/README.md).
+[faults.yaml](faults.yaml) shows all five actions and probability/nth/every
+selectors on separate paths; enable injection after application readiness.
+
 [faultline.yaml](faultline.yaml) is a complete, validated configuration example.
 Use `faultline validate --config examples/http/faultline.yaml` to validate it,
 or `faultline serve --config examples/http/faultline.yaml` to forward traffic

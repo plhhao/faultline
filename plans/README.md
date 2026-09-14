@@ -1,10 +1,10 @@
 # Kế hoạch hiện thực Faultline
 
-Nguồn yêu cầu: [specific.md](../specific.md). **Phase 01–04 đã Done**: core, [P01a — cấu hình nhiều file](01-core/04-multi-file-config.md), CLI validate/serve, HTTP/HTTPS forwarding, lifecycle hooks, năm fault action MVP và admin/runtime recorder. Phase 04 đã pass kiểm thử host và container Docker/OrbStack. Phase 05 chưa hiện thực; các plan sau MVP vẫn Deferred.
+Nguồn yêu cầu: [specific.md](../specific.md). **Phase 01–05 đã Done**: core, [cấu hình nhiều file](01-core/04-multi-file-config.md), HTTP/HTTPS forwarding, năm fault action, admin/recorder, giới hạn tài nguyên, payment demo và binary/Docker. [AC1–AC24 đã có bằng chứng](05-mvp-delivery/acceptance.md) trên macOS arm64 và Docker/OrbStack Linux arm64. Phase 06 đã chốt phạm vi và ở trạng thái Planned; phase 07–09 vẫn Deferred.
 
 ## Các phase
 
-Phase 01–05 chia nhỏ giai đoạn A trong mục 13 của đặc tả. Phase 06–09 tương ứng B–E, ở trạng thái Deferred. Thứ tự sau MVP có thể đổi theo nhu cầu; UI không phải đợi hỗ trợ thêm protocol.
+Phase 01–05 chia nhỏ giai đoạn A trong mục 13 của đặc tả. Phase 06–09 tương ứng B–E; phase 06 Planned, phase 07–09 Deferred. Thứ tự sau MVP có thể đổi theo nhu cầu; UI không phải đợi hỗ trợ thêm protocol.
 
 | Phase | Phạm vi | Kết quả | Số plan |
 | --- | --- | --- | --- |
@@ -13,7 +13,7 @@ Phase 01–05 chia nhỏ giai đoạn A trong mục 13 của đặc tả. Phase 
 | [03 — Fault actions](03-fault-actions/README.md) | MVP | Tất cả action MVP hoạt động tại đúng phase, có cancellation và bằng chứng kiểm thử. | 3 |
 | [04 — Điều khiển runtime và quan sát](04-runtime-control/README.md) | MVP | Thao tác CLI trên process đang chạy, reload atomically, JSON events và counters. | 3 |
 | [05 — Nghiệm thu và bàn giao MVP](05-mvp-delivery/README.md) | MVP | Đạt AC1–AC24, có demo lost response và chạy được bằng binary/Docker. | 3 |
-| [06 — Mở rộng protocol và fault](06-protocol-extensions/README.md) | Sau MVP | Chứng minh khả năng mở rộng qua adapter thứ hai; thêm HTTP capabilities theo nhu cầu. | 3 |
+| [06 — Mở rộng protocol và fault](06-protocol-extensions/README.md) | Sau MVP | gRPC unary, HTTP/2 hai phía, mTLS tùy chọn và truncate/throttle cho request/response. | 3 |
 | [07 — API và UI cho tester](07-tester-experience/README.md) | Sau MVP | Tester quản lý cấu hình trên server test chung qua cùng control service. | 2 |
 | [08 — Scenario và đánh giá kết quả](08-failure-testing/README.md) | Sau MVP | Điều phối kịch bản, correlation có bằng chứng và kết quả PASS/FAIL/inconclusive. | 2 |
 | [09 — Adapter theo công nghệ](09-semantic-adapters/README.md) | Sau MVP | Một adapter database/broker có semantics và integration tests được xác định rõ. | 2 |
@@ -22,8 +22,8 @@ Phase 01–05 chia nhỏ giai đoạn A trong mục 13 của đặc tả. Phase 
 
 - MVP: phase 01 → 02 → 03 → 04 → 05. Theo cột phụ thuộc của từng plan; có thể làm các plan độc lập sau khi đủ đầu vào.
 - Hoàn tất P01a trước P04; MC1–MC4 được kiểm chứng ở P01a/P11, MC5 ở P04/P11/P15. Các tiêu chí bổ sung không thay thế AC1–AC24.
-- Sau MVP: phase 06, 07, 08 và bước thiết kế phase 09 đều có thể bắt đầu từ P15 theo ưu tiên thực tế. gRPC cần nền HTTP/2; adapter công nghệ có thể bổ sung phụ thuộc sau khi chọn protocol.
-- P01–P15 và P01a là kế hoạch cụ thể cho MVP; P16–P24 là khung công việc mở rộng cần DEFINE lại khi được chọn, không phải cam kết làm mọi capability.
+- Sau MVP: phase 06, 07, 08 và bước thiết kế phase 09 đều có thể bắt đầu từ P15 theo ưu tiên thực tế. Phase 06 triển khai P17 (HTTP/2 và mTLS) → P16 (gRPC unary) → P18 (truncate rồi throttle); adapter công nghệ có thể bổ sung phụ thuộc sau khi chọn protocol.
+- P01–P15 và P01a là kế hoạch cụ thể cho MVP; P16–P18 đã DEFINE phạm vi phase 06; P19–P24 vẫn là khung mở rộng cần DEFINE lại khi được chọn, không phải cam kết làm mọi capability.
 - Tận dụng cấu trúc package hiện tại. Chỉ thêm package/interface khi implementation cần; ưu tiên helper có trách nhiệm rõ, không tạo sẵn common/utils hoặc framework plugin.
 - Schema, CLI transport và defaults còn là đề xuất trong đặc tả: chốt ở plan sở hữu, ghi quyết định và cập nhật tài liệu liên quan nếu thay đổi hợp đồng.
 

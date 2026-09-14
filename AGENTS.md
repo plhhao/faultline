@@ -8,7 +8,7 @@ Use [implementation plans](plans/README.md) for phase order, feature dependencie
 
 ## Project Structure & Module Organization
 
-Faultline is a Go network-failure testing proxy. Core, HTTP/HTTPS forwarding, MVP faults, local admin commands and JSON recorder are implemented. Phase 4 passed host/container verification; phase 5 owns final MVP acceptance. Follow `specific.md` for the agreed scope.
+Faultline is a Go network-failure testing proxy. The HTTP/HTTPS MVP, local admin, JSON recorder, payment demo and binary/Docker delivery are implemented. Phase 5 records AC1–AC24 evidence and resource measurements. Follow `specific.md` for the agreed scope.
 
 - `cmd/faultline/`: CLI entry point and component wiring.
 - `internal/config/`: configuration parsing and validation.
@@ -17,7 +17,7 @@ Faultline is a Go network-failure testing proxy. Core, HTTP/HTTPS forwarding, MV
 - `internal/engine/`: protocol-independent rule matching and fault selection.
 - `internal/fault/`: fault actions; `internal/proxy/http/`: HTTP I/O, TLS, and lifecycle hooks.
 - `internal/recorder/`: structured events and counters.
-- `examples/http/`: demo configurations; `tests/integration/`: cross-component tests; `deploy/docker/`: Docker packaging.
+- `examples/http/`: configs and payment demo/driver; `tests/integration/`: cross-component tests and benchmarks; `deploy/docker/`: non-root Docker packaging.
 
 Remove `.gitkeep` when adding real files to its directory.
 
@@ -41,7 +41,7 @@ Available now:
 - `rtk proxy go vet ./...`: run static checks.
 - `rtk proxy go fmt ./...`: format Go packages.
 
-YAML is pinned in `go.mod`; no release Dockerfile or additional linter exists yet. Opt-in container verification: `rtk proxy env FAULTLINE_DOCKER_TEST=1 go test ./tests/integration -run '^TestContainerRuntime$' -timeout 180s`.
+YAML is pinned in `go.mod`; Docker builds with Go 1.26.4. No additional linter is configured. Build: `rtk proxy docker build -f deploy/docker/Dockerfile -t faultline:local .`. Opt-in verification: `rtk proxy env FAULTLINE_DOCKER_TEST=1 go test ./tests/integration -run '^TestContainerRuntime$' -timeout 360s`.
 
 ## Coding Style & Architecture
 
@@ -51,10 +51,10 @@ Keep protocol I/O outside `engine`. Adapters provide protocol-specific capabilit
 
 ## Testing Guidelines
 
-Use Go's standard `testing` package. Place unit tests beside implementations in `*_test.go`, with functions named `TestBehavior`. Use table-driven cases where appropriate. Prioritize probability boundaries, reload consistency, cancellation, and resource cleanup. No numeric coverage threshold is established. HTTP/TLS integration tests require localhost TCP binding; end-to-end MVP acceptance remains pending.
+Use Go's standard `testing` package. Place unit tests beside implementations in `*_test.go`, with functions named `TestBehavior`. Use table-driven cases where appropriate. Prioritize probability boundaries, reload consistency, cancellation, and resource cleanup. No numeric coverage threshold is established. HTTP/TLS integration tests require localhost TCP binding; Docker tests are opt-in. Follow the bounded benchmark command in `plans/05-mvp-delivery/benchmark-results.md`.
 
 ## Commit & Pull Request Guidelines
 
-No Git repository or commit history exists yet. Adopt short, imperative subjects, for example `feat(config): validate fault probabilities`. Keep changes focused.
+Use short, imperative subjects, for example `feat(config): validate fault probabilities`. Keep changes focused.
 
 PRs should explain behavior changes, reference relevant specification sections or issues, and list validation results and limitations. Update examples when configuration changes. Never commit real TLS private keys or credentials.

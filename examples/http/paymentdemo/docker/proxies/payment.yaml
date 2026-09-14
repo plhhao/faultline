@@ -1,0 +1,13 @@
+proxies:
+  - id: payment
+    protocol: http1
+    listen: 0.0.0.0:8080
+    upstream: http://host.docker.internal:9000
+    rules:
+      - id: lost-response
+        match: {method: POST, path: /payments}
+        select: {probability: 1}
+        fault:
+          action: hold_response
+          phase: after_upstream_headers
+          max_duration: 3s

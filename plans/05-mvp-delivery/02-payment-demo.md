@@ -1,6 +1,6 @@
 # P14 — Demo lost response và nghiệm thu hành vi
 
-- Trạng thái: **Planned**
+- Trạng thái: **Done (2026-09-14)**
 - Phụ thuộc: [P13](../05-mvp-delivery/01-resource-limits.md)
 - Nguồn: [specific.md](../../specific.md), mục 12.
 - Nghiệm thu MVP liên quan: AC1, AC2, AC3, AC4, AC5, AC6, AC7, AC8, AC9, AC10, AC11, AC12, AC13, AC14, AC15, AC16, AC17, AC18, AC19, AC20, AC21, AC22, AC23
@@ -26,4 +26,14 @@ Cung cấp demo dễ lặp lại và bằng chứng cho toàn bộ AC hành vi; 
 
 Không coi 201 là bằng chứng commit chung cho mọi upstream; demo không biến thành assertion DSL trong core.
 
-Áp dụng [điều kiện Done](../README.md#theo-dõi-thực-hiện); các kiểm tra trên là kế hoạch, chưa phải kết quả đã chạy.
+## Kết quả VERIFY/REVIEW
+
+- [Payment demo](../../examples/http/paymentdemo/README.md) gồm dependency in-memory,
+  retry driver, config binary/Docker và hướng dẫn ready→enable→run→disable.
+- `TestPaymentDemoBinary` chạy binary thật, CLI admin và demo driver; Docker dùng
+  cùng driver contract. Cả hai biến thể đều timeout hai lần: 2 payment khi không
+  có idempotency, 1 payment khi có; events ghi selected/reached/applied/upstream 201.
+- [faults.yaml](../../examples/http/faults.yaml) minh họa cả năm action và ba selector;
+  [bảng AC](acceptance.md) ánh xạ toàn bộ hành vi sang tests đã pass, gồm bốn tổ hợp TLS.
+- Review: store chỉ là fixture, không bền qua restart; assertion ở demo/test,
+  không đưa business assertions hoặc retry correlation vào core proxy.

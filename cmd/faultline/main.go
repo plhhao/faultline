@@ -122,7 +122,9 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	}
 	defer func() {
 		management.Close()
-		server.Close()
+		drain, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		server.Shutdown(drain)
 		counts := records.Counters()
 		records.Record(recorder.Event{Info: service.Acquire().Info(), Type: "control", Operation: "shutdown", Outcome: "stopped", Counters: &counts})
 	}()

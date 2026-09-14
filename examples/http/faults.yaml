@@ -1,0 +1,29 @@
+api_version: faultline/v1alpha1
+seed: 42
+runtime: {max_inflight_requests: 32, request_timeout: 5s}
+proxies:
+  - id: examples
+    protocol: http1
+    listen: 127.0.0.1:8080
+    upstream: http://127.0.0.1:9000
+    rules:
+      - id: slow-request
+        match: {path: /delay}
+        select: {probability: 1}
+        fault: {action: delay, phase: before_upstream_request, duration: 500ms}
+      - id: third-response
+        match: {path: /respond}
+        select: {nth: 3}
+        fault: {action: respond, phase: before_upstream_request, status: 503, body: unavailable}
+      - id: every-tenth-close
+        match: {path: /close}
+        select: {every: 10}
+        fault: {action: close_connection, phase: before_upstream_request}
+      - id: blocked-request
+        match: {path: /hold-request}
+        select: {probability: 1}
+        fault: {action: hold_request, phase: before_upstream_request, max_duration: 3s}
+      - id: lost-response
+        match: {path: /hold-response}
+        select: {probability: 1}
+        fault: {action: hold_response, phase: after_upstream_headers, max_duration: 3s}
