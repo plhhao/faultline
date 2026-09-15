@@ -33,7 +33,12 @@ func (Builtin) Execute(ctx context.Context, action config.Fault, flow Capabiliti
 		flow.CancelUpstream()
 		applied(flow)
 		err := wait(ctx, *action.MaxDuration)
-		closeErr := flow.CloseConnection()
+		var closeErr error
+		if stream, ok := flow.(interface{ EndStream() error }); ok {
+			closeErr = stream.EndStream()
+		} else {
+			closeErr = flow.CloseConnection()
+		}
 		if err != nil {
 			return true, err
 		}

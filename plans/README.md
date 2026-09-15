@@ -1,10 +1,10 @@
 # Kế hoạch hiện thực Faultline
 
-Nguồn yêu cầu: [specific.md](../specific.md). **Phase 01–05 đã Done**: core, [cấu hình nhiều file](01-core/04-multi-file-config.md), HTTP/HTTPS forwarding, năm fault action, admin/recorder, giới hạn tài nguyên, payment demo và binary/Docker. [AC1–AC24 đã có bằng chứng](05-mvp-delivery/acceptance.md) trên macOS arm64 và Docker/OrbStack Linux arm64. Phase 06 đã chốt phạm vi và ở trạng thái Planned; phase 07–09 vẫn Deferred.
+Nguồn yêu cầu: [specific.md](../specific.md). **Phase 01–05 đã Done**: core, [cấu hình nhiều file](01-core/04-multi-file-config.md), HTTP/HTTPS forwarding, năm fault action, admin/recorder, giới hạn tài nguyên, payment demo và binary/Docker. [AC1–AC24 đã có bằng chứng](05-mvp-delivery/acceptance.md) trên macOS arm64 và Docker/OrbStack Linux arm64. **Phase 06 đã Done**: HTTP/2, gRPC unary, mTLS tùy chọn và truncate/throttle hai chiều; xem [15 AC và kết quả kiểm chứng](06-protocol-extensions/acceptance.md). Phase 07–09 vẫn Deferred.
 
 ## Các phase
 
-Phase 01–05 chia nhỏ giai đoạn A trong mục 13 của đặc tả. Phase 06–09 tương ứng B–E; phase 06 Planned, phase 07–09 Deferred. Thứ tự sau MVP có thể đổi theo nhu cầu; UI không phải đợi hỗ trợ thêm protocol.
+Phase 01–05 chia nhỏ giai đoạn A trong mục 13 của đặc tả. Phase 06–09 tương ứng B–E; phase 06 Done, phase 07–09 Deferred. Thứ tự sau MVP có thể đổi theo nhu cầu; UI không phải đợi hỗ trợ thêm protocol.
 
 | Phase | Phạm vi | Kết quả | Số plan |
 | --- | --- | --- | --- |
@@ -23,7 +23,7 @@ Phase 01–05 chia nhỏ giai đoạn A trong mục 13 của đặc tả. Phase 
 - MVP: phase 01 → 02 → 03 → 04 → 05. Theo cột phụ thuộc của từng plan; có thể làm các plan độc lập sau khi đủ đầu vào.
 - Hoàn tất P01a trước P04; MC1–MC4 được kiểm chứng ở P01a/P11, MC5 ở P04/P11/P15. Các tiêu chí bổ sung không thay thế AC1–AC24.
 - Sau MVP: phase 06, 07, 08 và bước thiết kế phase 09 đều có thể bắt đầu từ P15 theo ưu tiên thực tế. Phase 06 triển khai P17 (HTTP/2 và mTLS) → P16 (gRPC unary) → P18 (truncate rồi throttle); adapter công nghệ có thể bổ sung phụ thuộc sau khi chọn protocol.
-- P01–P15 và P01a là kế hoạch cụ thể cho MVP; P16–P18 đã DEFINE phạm vi phase 06; P19–P24 vẫn là khung mở rộng cần DEFINE lại khi được chọn, không phải cam kết làm mọi capability.
+- P01–P15 và P01a là kế hoạch cụ thể cho MVP; P16–P18 đã Done trong phase 06; P19–P24 vẫn là khung mở rộng cần DEFINE lại khi được chọn, không phải cam kết làm mọi capability.
 - Tận dụng cấu trúc package hiện tại. Chỉ thêm package/interface khi implementation cần; ưu tiên helper có trách nhiệm rõ, không tạo sẵn common/utils hoặc framework plugin.
 - Schema, CLI transport và defaults còn là đề xuất trong đặc tả: chốt ở plan sở hữu, ghi quyết định và cập nhật tài liệu liên quan nếu thay đổi hợp đồng.
 

@@ -111,7 +111,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 			fmt.Fprintf(stderr, "Recorder events incomplete: dropped=%d write_errors=%d pending=%d flush_error=%v\n", counts.Dropped, counts.WriteErrors, counts.Pending, err)
 		}
 	}()
-	server, err := httpproxy.Start(service, httpproxy.Options{Executor: fault.Builtin{}, Recorder: records})
+	server, err := httpproxy.Start(service, httpproxy.Options{Executor: fault.Builtin{}, Recorder: records, Diagnostics: stderr})
 	if err != nil {
 		return err
 	}

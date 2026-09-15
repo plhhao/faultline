@@ -1,0 +1,11 @@
+api_version: faultline/v1alpha1
+proxies:
+  - id: echo
+    protocol: grpc
+    listen: 127.0.0.1:8080
+    upstream: http://127.0.0.1:9000
+    rules:
+      - id: cut-every-second-response
+        match: {service: faultline.demo.Echo, method: Call}
+        select: {every: 2}
+        fault: {action: truncate, direction: response, phase: after_upstream_headers, bytes: 1024}

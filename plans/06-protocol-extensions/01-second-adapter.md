@@ -1,6 +1,6 @@
 # P16 — Adapter gRPC unary
 
-- Trạng thái: **Planned**
+- Trạng thái: **Done**
 - Phụ thuộc: [P17](02-http2-mtls.md), trên nền MVP [P15](../05-mvp-delivery/03-binary-docker.md)
 - Nguồn: [specific.md](../../specific.md), mục 9, 9.1, 13; [phạm vi phase 06](README.md).
 - Nghiệm thu MVP liên quan: Regression rule/control/recorder; thêm tiêu chí riêng bên dưới.
@@ -39,4 +39,9 @@ Regression HTTP/HTTPS MVP và chạy tests/race/vet/build theo [workflow](../REA
 
 Không đưa protocol I/O vào engine, không đồng nhất HTTP status với gRPC status hoặc RPC với TCP connection. Review metadata/trailers, retry, cleanup và việc tái sử dụng TLS từ P17; không mở rộng sang streaming hoặc semantic business assertions.
 
-2026-09-14: chọn gRPC unary và cập nhật kế hoạch, chưa hiện thực. Các kiểm tra trên chưa chạy; chỉ Done theo [workflow](../README.md#theo-dõi-thực-hiện).
+
+## BUILD / VERIFY — 2026-09-14
+
+Adapter gRPC unary dùng shared HTTP/2 I/O và helper metadata/status/deadline tại `internal/proxy/grpc`. Matcher service/method/metadata không cần protobuf ứng dụng. Có fixture Go và ví dụ binary/Docker/mTLS tại `examples/grpc`. GR-1–GR-4 đã có test pass, xem [lệnh, matrix và review](acceptance.md). Streaming vẫn Deferred.
+
+2026-09-14: **Done** sau full tests/race, vet, build CLI, binary/Docker và review; kết quả/lệnh cụ thể ở [bằng chứng nghiệm thu](acceptance.md).

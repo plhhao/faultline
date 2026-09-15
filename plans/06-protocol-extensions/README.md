@@ -1,6 +1,6 @@
 # Phase 06 — Mở rộng protocol và fault
 
-Phạm vi: **Sau MVP**. Trạng thái: **Planned**.
+Phạm vi: **Sau MVP**. Trạng thái: **Done**.
 
 ## DEFINE — Phạm vi đã chốt ngày 2026-09-14
 
@@ -35,6 +35,15 @@ Số plan giữ nguyên để bảo toàn tham chiếu; triển khai theo phụ 
 
 ## Tiến độ
 
-2026-09-14: hoàn tất cập nhật phạm vi và kế hoạch theo trao đổi. Chưa BUILD hoặc chạy kiểm thử tính năng; phase và các plan vẫn **Planned**.
+2026-09-14: **Done** P17 → P16 → P18. Đã hiện thực và kiểm chứng 15 AC bằng unit/integration tests, full race, vet, CLI build, binary và Docker (kể cả regression MVP). Review không còn blocker. Xem [bằng chứng nghiệm thu](acceptance.md) và [ví dụ/capability matrix](../../examples/grpc/README.md).
 
 Xem [lộ trình và quy tắc thực hiện](../README.md).
+
+## BUILD — Contract triển khai
+
+- `protocol: http1|http2|grpc` chọn listener/adapter. `upstream_protocol: http1|http2` mặc định theo adapter; gRPC bắt buộc http2. `http2` trên URL/listener không TLS là prior knowledge, không HTTP/1 Upgrade. TLS chỉ quảng bá protocol cấu hình.
+- `tls.client_ca_file` bật require-and-verify client; `upstream_tls.cert_file/key_file` cung cấp danh tính proxy, `ca_file` tùy chọn. Mọi field/file TLS thuộc restart fingerprint.
+- HTTP/1 giữ năm action MVP. HTTP/2 hỗ trợ delay, respond, hold_request/hold_response; gRPC hỗ trợ delay và hold. Hai protocol từ chối close_connection; gRPC từ chối respond. Hold HTTP/2 kết thúc stream sau thời gian chờ. Delay dùng hai phase hiện có.
+- Truncate/throttle dùng `direction: request|response`, phase tương ứng `before_upstream_request|after_upstream_headers`. Truncate có `bytes: N` (N >= 0); throttle có `bytes_per_second: R` (R > 0). Selected tại decision, reached khi gắn wrapper, applied khi thực sự cắt hoặc bắt đầu chờ cho byte body đầu tiên. Body rỗng hoặc N >= độ dài không applied.
+- Truncate dò thêm tối đa một byte ở biên N, lỗi nguồn trước biên là lỗi tự nhiên. Throttle đọc tối đa min(16 KiB, max(1, R/10)) mỗi lần, trả byte sau khi chờ n/R; không tích lũy tín dụng khi nguồn chậm. Burst tối đa một chunk. Thời gian kiểm chứng tối thiểu B/R trừ 20 ms, dung sai trên 1 giây cho scheduling ở fixture nhỏ.
+- Transport dùng Go 1.26 ClientConn.RoundTrip trực tiếp cho HTTP/2 để tránh vòng retry của Transport. Mỗi flow sở hữu upstream connection riêng, đóng khi body/flow kết thúc; client có thể multiplex stream trên cùng listener connection.

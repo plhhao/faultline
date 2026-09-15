@@ -30,8 +30,17 @@ func validate(c *Config, base string) (map[string][32]byte, error) {
 		if !identifier(p.ID) {
 			return nil, invalid(path+".id", "expected a nonempty identifier")
 		}
-		if p.Protocol != "http1" {
-			return nil, invalid(path+".protocol", "only http1 is supported")
+		if p.Protocol != "http1" && p.Protocol != "http2" && p.Protocol != "grpc" {
+			return nil, invalid(path+".protocol", "expected http1, http2 or grpc")
+		}
+		if p.UpstreamProtocol == "" {
+			p.UpstreamProtocol = p.Protocol
+			if p.Protocol == "grpc" {
+				p.UpstreamProtocol = "http2"
+			}
+		}
+		if p.UpstreamProtocol != "http1" && p.UpstreamProtocol != "http2" || p.Protocol == "grpc" && p.UpstreamProtocol != "http2" {
+			return nil, invalid(path+".upstream_protocol", "expected http1 or http2; grpc requires http2")
 		}
 		host, port, err := net.SplitHostPort(p.Listen)
 		number, portErr := strconv.Atoi(port)
@@ -81,6 +90,15 @@ func validate(c *Config, base string) (map[string][32]byte, error) {
 			rp := fmt.Sprintf("%s.rules[%d]", path, j)
 			if !identifier(r.ID) {
 				return nil, invalid(rp+".id", "expected a nonempty identifier")
+			}
+			if p.Protocol != "grpc" && r.Match.Service != "" {
+				return nil, invalid(rp+".match.service", "requires grpc")
+			}
+			if r.Match.Service != "" && !identifier(r.Match.Service) {
+				return nil, invalid(rp+".match.service", "invalid service name")
+			}
+			if p.Protocol != "http1" && r.Fault.Action == "close_connection" || p.Protocol == "grpc" && r.Fault.Action == "respond" {
+				return nil, invalid(rp+".fault.action", "unsupported capability for protocol")
 			}
 			if err := validateRule(r, rp); err != nil {
 				return nil, err
@@ -192,7 +210,7 @@ func validateRule(r *Rule, path string) error {
 func validateFault(f Fault, path string) error {
 	before, after := f.Phase == BeforeUpstreamRequest, f.Phase == AfterUpstreamHeaders
 	if !before && !after {
-		return invalid(path+".phase", "unsupported phase for http1")
+		return invalid(path+".phase", "unsupported phase")
 	}
 	switch f.Action {
 	case "delay":
@@ -213,9 +231,31 @@ func validateFault(f Fault, path string) error {
 		if f.MaxDuration == nil || *f.MaxDuration <= 0 {
 			return invalid(path+".max_duration", "positive max_duration is required")
 		}
+	case "truncate", "throttle":
+		if f.Direction != "request" && f.Direction != "response" {
+			return invalid(path+".direction", "expected request or response")
+		}
+		if (f.Direction == "request") != before {
+			return invalid(path+".phase", "phase must correspond to direction")
+		}
+		if f.Action == "truncate" && (f.Bytes == nil || *f.Bytes < 0) {
+			return invalid(path+".bytes", "nonnegative byte limit is required")
+		}
+		if f.Action == "throttle" && (f.BytesPerSecond == nil || *f.BytesPerSecond <= 0) {
+			return invalid(path+".bytes_per_second", "positive rate is required")
+		}
 	case "close_connection":
 	default:
-		return invalid(path+".action", "unsupported action for http1")
+		return invalid(path+".action", "unsupported action")
+	}
+	if f.Direction != "" && f.Action != "truncate" && f.Action != "throttle" {
+		return invalid(path+".direction", "not supported by this action")
+	}
+	if f.Bytes != nil && f.Action != "truncate" {
+		return invalid(path+".bytes", "not supported by this action")
+	}
+	if f.BytesPerSecond != nil && f.Action != "throttle" {
+		return invalid(path+".bytes_per_second", "not supported by this action")
 	}
 	if f.Duration != nil && f.Action != "delay" {
 		return invalid(path+".duration", "not supported by this action")

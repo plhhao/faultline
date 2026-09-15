@@ -1,0 +1,23 @@
+api_version: faultline/v1alpha1
+proxies:
+  - id: body-faults
+    protocol: http1
+    listen: 127.0.0.1:8080
+    upstream: http://127.0.0.1:9000
+    rules:
+      - id: cut-upload
+        match: {path: /truncate-request}
+        select: {probability: 1}
+        fault: {action: truncate, direction: request, phase: before_upstream_request, bytes: 1024}
+      - id: cut-download
+        match: {path: /truncate-response}
+        select: {probability: 1}
+        fault: {action: truncate, direction: response, phase: after_upstream_headers, bytes: 1024}
+      - id: slow-upload
+        match: {path: /throttle-request}
+        select: {probability: 1}
+        fault: {action: throttle, direction: request, phase: before_upstream_request, bytes_per_second: 65536}
+      - id: slow-download
+        match: {path: /throttle-response}
+        select: {probability: 1}
+        fault: {action: throttle, direction: response, phase: after_upstream_headers, bytes_per_second: 65536}

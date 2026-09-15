@@ -43,7 +43,7 @@ is atomic, filesystem edits across multiple files are not a transaction.
 | `seed` | `0`; unsigned 64-bit integer |
 | `runtime.max_inflight_requests` | `1000`; positive integer |
 | `runtime.request_timeout` | `30s`; positive duration |
-| `proxies` | At least one; `protocol: http1`, listener and upstream required |
+| `proxies` | At least one; `protocol: http1|http2|grpc`, listener and upstream required |
 | Listener host | `:8080` becomes `127.0.0.1:8080`; ports must be 1–65535 |
 | `rules` | Empty list when omitted |
 | `rule.enabled` | `true`; process injection still starts disabled |
@@ -80,7 +80,8 @@ uses `upstream_tls.ca_file` with an HTTPS origin. Paths resolve relative to the
 file declaring that proxy, not the current working directory. Cert/key must parse and
 match; the CA file must contain parseable PEM certificates. The TLS adapter
 verifies upstream hostname/trust using system CA plus the configured CA, and
-negotiates HTTP/1.1 only on both sides.
+negotiates the configured protocol on each side. Optional mTLS uses
+`tls.client_ca_file` and/or `upstream_tls.cert_file/key_file`.
 
 Changing TLS settings, file paths or file contents requires restart. Reload
 compares the validated file digests even if the file names remain unchanged.
@@ -98,3 +99,11 @@ TLS and runtime changes require restart and reject the whole reload.
 The parser uses [go.yaml.in/yaml/v3](https://pkg.go.dev/go.yaml.in/yaml/v3)
 `v3.0.5`, with field-aware decoding to preserve diagnostic paths and avoid
 including secret scalar values in errors.
+
+## Phase 6 examples
+
+[http2.yaml](http2.yaml) uses explicit cleartext HTTP/2 with a throttled download.
+[body-faults.yaml](body-faults.yaml) exercises truncate/throttle in both directions
+on HTTP/1.1; change `protocol` to `http2` for an HTTP/2 upstream.
+See the [protocol/capability and mTLS guide](../grpc/README.md) for schema,
+byte accounting, edge cases, stream isolation and TLS restart behavior.

@@ -56,3 +56,9 @@ Run the opt-in delivery test with a working Docker daemon:
 ```sh
 rtk proxy env FAULTLINE_DOCKER_TEST=1 go test ./tests/integration -run '^TestContainerRuntime$' -v -count=1 -timeout 360s
 ```
+
+For phase 6, use the [gRPC mTLS Docker example](../../examples/grpc/README.md#docker).
+It uses the same image, independently configurable TLS on both legs, and mounted
+CA/cert/key files. HTTP/2 protocol settings and all TLS changes require restart.
+The opt-in `TestExtensionDocker` test covers unary gRPC with mTLS on both legs,
+admin reload, and truncate/throttle for request and response.

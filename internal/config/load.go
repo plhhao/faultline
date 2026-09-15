@@ -132,9 +132,12 @@ func finish(c Config, sources []proxySource, root string) (*Document, error) {
 		if p.TLS != nil {
 			resolve(&p.TLS.CertFile)
 			resolve(&p.TLS.KeyFile)
+			resolve(&p.TLS.ClientCAFile)
 		}
 		if p.UpstreamTLS != nil {
 			resolve(&p.UpstreamTLS.CAFile)
+			resolve(&p.UpstreamTLS.CertFile)
+			resolve(&p.UpstreamTLS.KeyFile)
 		}
 	}
 	digests, err := validate(&c, filepath.Dir(root))

@@ -8,16 +8,16 @@ Use [implementation plans](plans/README.md) for phase order, feature dependencie
 
 ## Project Structure & Module Organization
 
-Faultline is a Go network-failure testing proxy. The HTTP/HTTPS MVP, local admin, JSON recorder, payment demo and binary/Docker delivery are implemented. Phase 5 records AC1–AC24 evidence and resource measurements. Follow `specific.md` for the agreed scope.
+Faultline is a Go network-failure testing proxy. The HTTP/HTTPS MVP, local admin, JSON recorder, payment demo and binary/Docker delivery are implemented. Phase 5 records AC1–AC24 evidence and resource measurements. Phase 6 adds HTTP/2, unary gRPC, optional per-leg mTLS, and request/response truncate/throttle, with 15 additional acceptance criteria. Follow `specific.md` for the agreed scope.
 
 - `cmd/faultline/`: CLI entry point and component wiring.
 - `internal/config/`: configuration parsing and validation.
 - `internal/control/`: active snapshots, reload, injection enable/disable, and status.
 - `internal/control/admin/`: private Unix socket server and runtime CLI client.
 - `internal/engine/`: protocol-independent rule matching and fault selection.
-- `internal/fault/`: fault actions; `internal/proxy/http/`: HTTP I/O, TLS, and lifecycle hooks.
+- `internal/fault/`: fault actions; `internal/proxy/http/`: shared HTTP/1–HTTP/2 I/O, TLS/mTLS and lifecycle hooks; `internal/proxy/grpc/`: gRPC metadata/status/deadline semantics.
 - `internal/recorder/`: structured events and counters.
-- `examples/http/`: configs and payment demo/driver; `tests/integration/`: cross-component tests and benchmarks; `deploy/docker/`: non-root Docker packaging.
+- `examples/http/`: configs and payment demo/driver; `examples/grpc/`: unary fixture, TLS/mTLS and Docker examples; `tests/integration/`: cross-component tests and benchmarks; `deploy/docker/`: non-root Docker packaging.
 
 Remove `.gitkeep` when adding real files to its directory.
 

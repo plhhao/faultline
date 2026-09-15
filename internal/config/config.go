@@ -27,22 +27,26 @@ type Runtime struct {
 }
 
 type Proxy struct {
-	ID          string       `yaml:"id"`
-	Protocol    string       `yaml:"protocol"`
-	Listen      string       `yaml:"listen"`
-	Upstream    string       `yaml:"upstream"`
-	TLS         *ListenerTLS `yaml:"tls"`
-	UpstreamTLS *UpstreamTLS `yaml:"upstream_tls"`
-	Rules       []Rule       `yaml:"rules"`
+	ID               string       `yaml:"id"`
+	Protocol         string       `yaml:"protocol"`
+	UpstreamProtocol string       `yaml:"upstream_protocol"`
+	Listen           string       `yaml:"listen"`
+	Upstream         string       `yaml:"upstream"`
+	TLS              *ListenerTLS `yaml:"tls"`
+	UpstreamTLS      *UpstreamTLS `yaml:"upstream_tls"`
+	Rules            []Rule       `yaml:"rules"`
 }
 
 type ListenerTLS struct {
-	CertFile string `yaml:"cert_file"`
-	KeyFile  string `yaml:"key_file"`
+	CertFile     string `yaml:"cert_file"`
+	KeyFile      string `yaml:"key_file"`
+	ClientCAFile string `yaml:"client_ca_file"`
 }
 
 type UpstreamTLS struct {
-	CAFile string `yaml:"ca_file"`
+	CAFile   string `yaml:"ca_file"`
+	CertFile string `yaml:"cert_file"`
+	KeyFile  string `yaml:"key_file"`
 }
 
 type Rule struct {
@@ -55,6 +59,7 @@ type Rule struct {
 
 type Matcher struct {
 	Method  string            `yaml:"method"`
+	Service string            `yaml:"service"`
 	Path    string            `yaml:"path"`
 	Headers map[string]string `yaml:"headers"`
 }
@@ -66,12 +71,15 @@ type Selector struct {
 }
 
 type Fault struct {
-	Phase       string         `yaml:"phase"`
-	Action      string         `yaml:"action"`
-	Duration    *time.Duration `yaml:"duration"`
-	MaxDuration *time.Duration `yaml:"max_duration"`
-	Status      *int           `yaml:"status"`
-	Body        *string        `yaml:"body"`
+	Phase          string         `yaml:"phase"`
+	Action         string         `yaml:"action"`
+	Duration       *time.Duration `yaml:"duration"`
+	MaxDuration    *time.Duration `yaml:"max_duration"`
+	Status         *int           `yaml:"status"`
+	Body           *string        `yaml:"body"`
+	Direction      string         `yaml:"direction"`
+	Bytes          *int           `yaml:"bytes"`
+	BytesPerSecond *int           `yaml:"bytes_per_second"`
 }
 
 // Document owns validated, normalized configuration. Accessors return copies.
@@ -100,6 +108,8 @@ func (f Fault) Clone() Fault {
 	f.MaxDuration = clonePointer(f.MaxDuration)
 	f.Status = clonePointer(f.Status)
 	f.Body = clonePointer(f.Body)
+	f.Bytes = clonePointer(f.Bytes)
+	f.BytesPerSecond = clonePointer(f.BytesPerSecond)
 	return f
 }
 

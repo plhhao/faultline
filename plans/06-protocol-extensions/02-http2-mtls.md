@@ -1,6 +1,6 @@
 # P17 — HTTP/2 hai phía và mTLS tùy chọn
 
-- Trạng thái: **Planned**
+- Trạng thái: **Done**
 - Phụ thuộc: [P15](../05-mvp-delivery/03-binary-docker.md)
 - Cung cấp nền cho: [P16](01-second-adapter.md), [P18](03-additional-faults.md)
 - Nguồn: [specific.md](../../specific.md), mục 3.1, 9.1, 13; [phạm vi phase 06](README.md).
@@ -51,4 +51,9 @@ Chạy regression HTTP/HTTPS MVP, unit/integration tests, race, vet và build CL
 
 Review bảng capability và config compatibility; không diễn giải reset stream như close connection, không bỏ verify TLS, không mặc nhiên giữ danh tính TLS gốc. Kiểm tra retry, body cleanup, clone/digest và tránh duplicate TLS logic giữa HTTP/gRPC.
 
-2026-09-14: cập nhật kế hoạch, chưa hiện thực. Các kiểm tra trên là tiêu chí dự kiến, chưa phải kết quả đã chạy; chỉ Done theo [workflow](../README.md#theo-dõi-thực-hiện).
+
+## BUILD / VERIFY — 2026-09-14
+
+HTTP/2 native Go 1.26 với `protocol`/`upstream_protocol`, TLS ALPN hoặc prior knowledge, mTLS qua `tls.client_ca_file` và `upstream_tls.cert_file/key_file`. Mọi file TLS nằm trong digest/restart fingerprint. Deadline/cancel dùng stream scope; HTTP/2 upstream dùng ClientConn một attempt. H2-1–H2-3 và MT-1–MT-4 đã có test pass, xem [lệnh, matrix và review](acceptance.md).
+
+2026-09-14: **Done** sau full tests/race, vet, build CLI, binary/Docker và review; kết quả/lệnh cụ thể ở [bằng chứng nghiệm thu](acceptance.md).

@@ -1,6 +1,6 @@
 # P18 — Truncate và throttle cho request/response
 
-- Trạng thái: **Planned**
+- Trạng thái: **Done**
 - Phụ thuộc: [P16](01-second-adapter.md), [P17](02-http2-mtls.md)
 - Nguồn: [specific.md](../../specific.md), mục 5.2, 5.4, 6.4; [phạm vi phase 06](README.md).
 - Nghiệm thu MVP liên quan: Regression fault/control/resource behavior; thêm tiêu chí riêng bên dưới.
@@ -44,4 +44,9 @@ Chạy tests/race/vet/build và regression năm fault MVP; tổng hợp matrix p
 
 Review cut boundary, framing và gRPC trailers/status; không báo thiếu body thành kết quả thành công. Kiểm tra timer/buffer, backpressure, stream isolation, retry, counters và cleanup; không cam kết packet loss/reordering ở cấp IP hoặc tác động chính xác lên timing của stream khác dùng chung tài nguyên.
 
-2026-09-14: chọn cả hai action và hai chiều, cập nhật kế hoạch, chưa hiện thực. Các kiểm tra trên chưa chạy; chỉ Done theo [workflow](../README.md#theo-dõi-thực-hiện).
+
+## BUILD / VERIFY — 2026-09-14
+
+Hai action có wrapper body tại `internal/fault/body.go`; schema `direction`, `bytes`, `bytes_per_second` và phase đã ghi trong [contract phase](README.md#build--contract-triển-khai). Truncate dò một byte, throttle chunk hữu hạn/ngân sách riêng mỗi flow, callback applied an toàn khi upload chạy trên goroutine transport. FT-1–FT-4 đã có test pass, xem [lệnh, matrix, tài nguyên và review](acceptance.md).
+
+2026-09-14: **Done** sau full tests/race, vet, build CLI, binary/Docker và review; kết quả/lệnh cụ thể ở [bằng chứng nghiệm thu](acceptance.md).

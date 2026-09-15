@@ -4,14 +4,18 @@ Faultline is a Go proxy for testing how applications handle network failures.
 It sits between an application and its dependency, injects configurable faults,
 and records what happened.
 
-The first milestone targets HTTP/1.1 over HTTP and HTTPS, with file-based
-configuration, runtime injection controls, and one fault action per request.
+Faultline supports HTTP/1.1, HTTP/2 and unary gRPC, with optional TLS/mTLS,
+file-based configuration, runtime controls, and one fault action per flow.
 
 **Status:** the HTTP/HTTPS MVP (phases 1–5) is complete: five fault actions, local
 administration, JSON events, payment demo and binary/Docker delivery. See
 [AC1–AC24 evidence](plans/05-mvp-delivery/acceptance.md),
 [resource measurements](plans/05-mvp-delivery/benchmark-results.md) and the
 [runnable lost-response demo](examples/http/paymentdemo/README.md).
+
+**Phase 6 is complete:** HTTP/2, unary gRPC, optional mTLS, and request/response
+truncate and throttle. See the [examples and protocol contract](examples/grpc/README.md)
+and [15 acceptance criteria with verification results](plans/06-protocol-extensions/acceptance.md).
 
 ## Run locally
 
@@ -123,8 +127,9 @@ even if its final report records cancellation before the configured duration.
 
 ## HTTP behavior
 
-- HTTP/1.1 is enforced on both sides; TLS uses system trust plus any configured
-  CA, with hostname verification. Client-facing and upstream TLS are independent.
+- `protocol: http1|http2|grpc` selects the listener; `upstream_protocol` selects
+  the upstream HTTP version. gRPC requires HTTP/2. TLS uses system trust plus any
+  configured CA, with hostname verification. TLS/mTLS on each leg is independent.
 - Bodies stream with bounded copy buffers. Method, escaped path, raw query,
   body, status, repeated headers and trailers are forwarded using Go reverse
   proxy semantics; Host becomes the configured upstream authority. Hop-by-hop
@@ -132,14 +137,14 @@ even if its final report records cancellation before the configured duration.
   removed. Automatic compression and environment forward proxies are disabled.
 - Each upstream request uses a fresh connection to prevent transport retries.
   This increases TCP/TLS connection cost; downstream keep-alive remains supported.
-- The inflight limit is shared across listeners; excess requests receive 503.
-  Request deadlines cover hooks and body I/O, and terminate connections when
-  necessary. Header reads, idle connections and TLS handshakes are also bounded
+- The inflight limit is shared across listeners; excess HTTP requests receive 503
+  and gRPC calls receive RESOURCE_EXHAUSTED.
+  Request deadlines cover hooks and body I/O; HTTP/2 uses stream deadlines. Header reads, idle connections and TLS handshakes are also bounded
   using `request_timeout`. An incomplete upload is closed after an early response.
 - Natural upstream failures return 502 before final headers; failures during a
   streamed body abort the response. CONNECT, upgrades/WebSocket, forward-proxy
-  requests and HTTP/1.0 are rejected. HTTP/2, mTLS and unbounded streams are outside
-  this milestone.
+  requests and HTTP/1.0 are rejected. gRPC streaming remains outside the verified
+  scope; all flows are bounded by request_timeout.
 
 The adapter exposes before-request and after-final-headers hooks; informational
 1xx responses do not trigger the latter. Each request pins one control snapshot.
@@ -177,7 +182,8 @@ faultline/
 │   ├── engine/             # Protocol-independent matching and fault selection
 │   ├── fault/              # Fault actions and execution
 │   ├── proxy/
-│   │   └── http/           # HTTP/1.1 forwarding, TLS, and lifecycle hooks
+│   │   ├── http/           # HTTP/1.1–HTTP/2 forwarding, TLS, stream lifecycle
+│   │   └── grpc/           # gRPC metadata, status and deadline semantics
 │   └── recorder/           # Structured events, counters, and flow timelines
 ├── examples/
 │   └── http/               # Configurations and runnable payment demo

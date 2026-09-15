@@ -19,9 +19,10 @@ import (
 
 // Observe runs synchronously as a flow finishes; it must be concurrency-safe and bounded.
 type Options struct {
-	Executor fault.Executor
-	Observe  func(Report)
-	Recorder *recorder.Recorder
+	Executor    fault.Executor
+	Observe     func(Report)
+	Recorder    *recorder.Recorder
+	Diagnostics io.Writer
 }
 
 type endpoint struct {
@@ -56,6 +57,10 @@ func Start(service *control.Service, options Options) (*Server, error) {
 		}
 	}()
 	slots := make(chan struct{}, c.Runtime.MaxInflightRequests)
+	diagnostics := options.Diagnostics
+	if diagnostics == nil {
+		diagnostics = io.Discard
+	}
 	for _, p := range c.Proxies {
 		transport, listenerTLS, err := transportFor(p)
 		if err != nil {
@@ -70,16 +75,16 @@ func Start(service *control.Service, options Options) (*Server, error) {
 			listener = tls.NewListener(listener, listenerTLS)
 		}
 		target, _ := url.Parse(p.Upstream)
-		handler := &handler{service: service, proxyID: p.ID, target: target, transport: transport, runtime: c.Runtime, slots: slots, options: options, shutdown: ctx}
+		handler := &handler{service: service, proxyID: p.ID, protocol: p.Protocol, target: target, transport: transport, runtime: c.Runtime, slots: slots, options: options, shutdown: ctx}
 		server := &http.Server{
-			Handler: s.track(handler), Protocols: http1(),
+			Handler: s.track(handler), Protocols: protocols(p.Protocol, p.TLS != nil), TLSConfig: listenerTLS,
 			ReadHeaderTimeout: c.Runtime.RequestTimeout, ReadTimeout: c.Runtime.RequestTimeout,
 			WriteTimeout: c.Runtime.RequestTimeout, IdleTimeout: c.Runtime.RequestTimeout,
 			BaseContext: func(net.Listener) context.Context { return ctx },
 			ConnContext: func(ctx context.Context, conn net.Conn) context.Context {
 				return context.WithValue(ctx, connectionKey{}, conn)
 			},
-			ErrorLog: log.New(io.Discard, "", 0),
+			ErrorLog: log.New(diagnostics, "proxy "+p.ID+": ", 0),
 		}
 		s.endpoints = append(s.endpoints, endpoint{p.ID, listener, server, transport})
 	}

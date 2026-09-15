@@ -10,7 +10,7 @@ Review lần 2 chốt thêm: tạm thời hỗ trợ HTTPS thông thường, đ�
 
 Giải thích về truncate request/response nằm ở mục 5.4. Đây là lỗi truyền body không hoàn tất có giá trị kiểm thử; đã được chọn cho phase 06 sau MVP cùng throttle, ở cả chiều request và response.
 
-Phạm vi phase 06 đã chốt ngày 2026-09-14: gRPC unary, HTTP/2 cả hai phía qua TLS hoặc không TLS khi cấu hình tường minh, mTLS tùy chọn độc lập ở mỗi phía, truncate và throttle cho request/response trên HTTP và gRPC. Giữ một action/flow; TLS thay đổi cần restart. Streaming gRPC và hot reload certificate tiếp tục để sau. Xem [kế hoạch phase 06](plans/06-protocol-extensions/README.md) cho contract, thứ tự và tiêu chí nghiệm thu; các tính năng này **Planned, chưa hiện thực**, không thay đổi phạm vi MVP đã nghiệm thu.
+Phạm vi phase 06 đã chốt ngày 2026-09-14: gRPC unary, HTTP/2 cả hai phía qua TLS hoặc không TLS khi cấu hình tường minh, mTLS tùy chọn độc lập ở mỗi phía, truncate và throttle cho request/response trên HTTP và gRPC. Giữ một action/flow; TLS thay đổi cần restart. Streaming gRPC và hot reload certificate tiếp tục để sau. Xem [kế hoạch phase 06](plans/06-protocol-extensions/README.md) cho contract, thứ tự và tiêu chí nghiệm thu; các tính năng này đã **Done**, với [15 AC và bằng chứng kiểm chứng](plans/06-protocol-extensions/acceptance.md), không thay đổi phạm vi MVP đã nghiệm thu. Schema/capability thực tế xem [hướng dẫn phase 06](examples/grpc/README.md).
 
 ## 1. Bài toán và mục tiêu
 
@@ -202,7 +202,7 @@ HTTPS cũng có thể bị ngắt giữa chừng; TLS không làm dữ liệu ch
 
 **Giá trị riêng so với lost response:** lost response trong MVP chặn trước khi client nhận response headers cuối cùng; truncate response cho client nhận headers và một phần body trước khi lỗi. Tình huống sau giúp phát hiện app chỉ kiểm tra status thành công mà bỏ qua kết quả đọc body. Kết quả cụ thể cần kiểm tra với client/server thực tế, không mặc định upstream sẽ rollback mọi side effect.
 
-**Định hướng khi triển khai sau MVP:** chuyển N byte body rồi ngắt, giữ bằng chứng body chưa hoàn tất. Không sửa `Content-Length` thành N hoặc thêm chunk kết thúc bình thường để biến body bị cắt thành message HTTP hợp lệ ngắn hơn. Cần tách lỗi do Faultline inject với body nguồn vốn đã thiếu, định nghĩa trường hợp body không đủ dài để cắt, và kiểm tra cả HTTP lẫn HTTPS. Đây là mô tả hành vi dự kiến, chưa bổ sung action/schema truncate vào MVP.
+**Định hướng khi triển khai sau MVP:** chuyển N byte body rồi ngắt, giữ bằng chứng body chưa hoàn tất. Không sửa `Content-Length` thành N hoặc thêm chunk kết thúc bình thường để biến body bị cắt thành message HTTP hợp lệ ngắn hơn. Cần tách lỗi do Faultline inject với body nguồn vốn đã thiếu, định nghĩa trường hợp body không đủ dài để cắt, và kiểm tra cả HTTP lẫn HTTPS. Phase 06 đã hiện thực hành vi này với `action: truncate`, `direction`, `bytes` và phase tương ứng; không thay đổi phạm vi MVP.
 
 ## 6. Tỉ lệ lỗi và tính lặp lại
 
