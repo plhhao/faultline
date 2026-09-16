@@ -15,6 +15,7 @@ import (
 	"faultline/internal/config"
 	"faultline/internal/control"
 	"faultline/internal/control/admin"
+	"faultline/internal/control/remote"
 	"faultline/internal/fault"
 	httpproxy "faultline/internal/proxy/http"
 	"faultline/internal/recorder"
@@ -35,10 +36,16 @@ func main() {
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
-		fmt.Fprintln(stdout, "Usage: faultline <validate|serve|reload|enable|disable|status> [flags]\n\nvalidate/serve/reload require --config FILE.\nserve supports --start-enabled, --admin-socket PATH and --event-buffer N.\nRuntime commands support --admin-socket PATH and --timeout DURATION.")
+		fmt.Fprintln(stdout, "Usage: faultline <validate|serve|reload|enable|disable|status|user|configure> [flags]\n\nvalidate/serve/reload require --config FILE.\nserve supports --start-enabled, --admin-socket PATH and --event-buffer N.\nRuntime commands support --admin-socket PATH and --timeout DURATION.\nManaged API/UI: serve --data-dir DIR --api-listen HOST:PORT --api-cert PEM --api-key PEM.\nAccounts: user --data-dir DIR --name NAME --role viewer|editor (password from stdin), or --delete.\nOffline infrastructure: configure --data-dir DIR --config FILE (instance must be stopped).")
 		return nil
 	}
 	command := args[0]
+	if command == "configure" {
+		return runConfigure(args[1:], stdout, stderr)
+	}
+	if command == "user" {
+		return runUser(args[1:], stdout, stderr)
+	}
 	if command != "validate" && command != "serve" && command != "reload" && command != "enable" && command != "disable" && command != "status" {
 		return fmt.Errorf("unknown command %q; use --help", command)
 	}
@@ -53,9 +60,14 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		flags.StringVar(&socket, "admin-socket", socket, "Unix socket identifying the local instance")
 	}
 	var enabled bool
+	var dataDir, apiAddress, apiCert, apiKey string
 	eventBuffer := recorder.DefaultBuffer
 	timeout := 5 * time.Second
 	if command == "serve" {
+		flags.StringVar(&dataDir, "data-dir", "", "managed API/UI data directory (0700); file mode when omitted")
+		flags.StringVar(&apiAddress, "api-listen", "127.0.0.1:8443", "HTTPS admin/UI listener in managed mode")
+		flags.StringVar(&apiCert, "api-cert", "", "HTTPS admin certificate PEM")
+		flags.StringVar(&apiKey, "api-key", "", "HTTPS admin private key PEM")
 		flags.BoolVar(&enabled, "start-enabled", false, "enable fault injection at startup")
 		flags.IntVar(&eventBuffer, "event-buffer", eventBuffer, "maximum queued JSON events")
 	} else if command != "validate" {
@@ -88,17 +100,40 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		_, err = stdout.Write(data)
 		return err
 	}
-	document, err := config.Load(filename)
-	if err != nil {
-		return err
+	var document *config.Document
+	var managed *remote.Server
+	var service *control.Service
+	var err error
+	if command == "serve" && dataDir != "" {
+		if apiCert == "" || apiKey == "" || apiAddress == "" {
+			return errors.New("managed mode requires --api-cert, --api-key and --api-listen")
+		}
+		store, doc, openErr := remote.Open(dataDir, filename)
+		if openErr != nil {
+			return openErr
+		}
+		defer store.Close()
+		document = doc
+		managed, err = remote.New(store, document)
+		if err != nil {
+			return err
+		}
+		service = managed.Service()
+	} else {
+		document, err = config.Load(filename)
+		if err != nil {
+			return err
+		}
 	}
 	if command == "validate" {
 		fmt.Fprintln(stdout, "Configuration valid")
 		return nil
 	}
-	service, err := control.New(document)
-	if err != nil {
-		return err
+	if service == nil {
+		service, err = control.New(document)
+		if err != nil {
+			return err
+		}
 	}
 	service.SetEnabled(enabled)
 	records := recorder.New(stdout, eventBuffer)
@@ -116,7 +151,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	defer server.Close()
-	management, err := admin.Start(socket, service, records, server.Listeners)
+	management, err := admin.Start(socket, service, records, server.Listeners, managed != nil)
 	if err != nil {
 		return err
 	}
@@ -128,12 +163,23 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		counts := records.Counters()
 		records.Record(recorder.Event{Info: service.Acquire().Info(), Type: "control", Operation: "shutdown", Outcome: "stopped", Counters: &counts})
 	}()
+	var apiErrors <-chan error
+	if managed != nil {
+		if err := managed.Start(remote.Options{Address: apiAddress, Certificate: apiCert, Key: apiKey}, records, server.Listeners); err != nil {
+			return err
+		}
+		defer managed.Close()
+		apiErrors = managed.Errors()
+		fmt.Fprintf(stderr, "Managed UI: https://%s; local admin is read-only\n", apiAddress)
+	}
 	records.Record(recorder.Event{Info: service.Acquire().Info(), Type: "control", Operation: "serve", Outcome: "ready"})
 	fmt.Fprintf(stderr, "Listeners ready; injection_enabled=%t; admin_socket=%s (application/upstream readiness is not checked)\n", enabled, socket)
 	select {
 	case <-ctx.Done():
 		return nil
 	case err := <-server.Errors():
+		return err
+	case err := <-apiErrors:
 		return err
 	case err := <-management.Errors():
 		return err

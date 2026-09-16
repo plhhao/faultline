@@ -131,6 +131,9 @@ func matches(m config.Matcher, metadata Metadata) bool {
 	if m.Method != "" && m.Method != metadata.Method || m.Path != "" && m.Path != path {
 		return false
 	}
+	if m.PathPattern != "" && !matchesPathPattern(m.PathPattern, path) {
+		return false
+	}
 	for name, expected := range m.Headers {
 		found := false
 		for actual, values := range metadata.Headers {
@@ -148,4 +151,26 @@ func matches(m config.Matcher, metadata Metadata) bool {
 		}
 	}
 	return true
+}
+
+// Pattern syntax is validated by config; matching does not decode or rewrite paths.
+func matchesPathPattern(pattern, path string) bool {
+	for {
+		want, restPattern, morePattern := strings.Cut(pattern, "/")
+		got, restPath, morePath := strings.Cut(path, "/")
+		if strings.HasPrefix(want, ":") {
+			if got == "" {
+				return false
+			}
+		} else if want != got {
+			return false
+		}
+		if morePattern != morePath {
+			return false
+		}
+		if !morePattern {
+			return true
+		}
+		pattern, path = restPattern, restPath
+	}
 }

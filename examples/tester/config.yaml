@@ -1,0 +1,40 @@
+api_version: faultline/v1alpha1
+proxies:
+  - id: payment
+    protocol: http1
+    listen: 127.0.0.1:8080
+    upstream: http://127.0.0.1:9000
+    rules:
+      - id: payment-fault
+        match:
+          path: /healthz
+        select:
+          probability: 0
+        fault:
+          action: respond
+          phase: before_upstream_request
+          status: 503
+          body: Injected by Faultline
+      - id: payment-detail
+        enabled: false
+        match:
+          path_pattern: /payment/:id
+        select:
+          probability: 1
+        fault:
+          action: respond
+          phase: before_upstream_request
+          status: 503
+          body: Path pattern matched
+  - id: echo
+    protocol: grpc
+    listen: 127.0.0.1:8081
+    upstream: http://127.0.0.1:9001
+    rules:
+      - id: echo-delay
+        select:
+          probability: 0
+        fault:
+          action: delay
+          phase: before_upstream_request
+          duration: 2s

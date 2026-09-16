@@ -41,8 +41,9 @@ func (s Snapshot) Counters(proxyID, ruleID string) (engine.Counters, bool) {
 }
 
 type Service struct {
-	mu     sync.RWMutex
-	active Snapshot
+	mu      sync.RWMutex
+	active  Snapshot
+	persist func(*config.Document, Result) error
 }
 
 type Result struct {
@@ -80,29 +81,73 @@ func (s *Service) SetEnabled(enabled bool) Result {
 	return Result{Changed: true, Info: s.active.info}
 }
 
+var ErrConflict = errors.New("control: config revision conflict")
+
+// NewManaged restores a committed revision; persist runs under the publication lock.
+func NewManaged(document *config.Document, revision uint64, persist func(*config.Document, Result) error) (*Service, error) {
+	s, err := New(document)
+	if err != nil {
+		return nil, err
+	}
+	if revision == 0 || persist == nil {
+		return nil, errors.New("control: revision and persistence required")
+	}
+	s.active.info.Revision = revision
+	s.persist = persist
+	return s, nil
+}
+
 // Apply publishes a fully validated revision atomically and preserves injection state.
 func (s *Service) Apply(document *config.Document) (Result, error) {
+	if s.persist != nil {
+		return Result{}, errors.New("control: managed config requires revision precondition")
+	}
+	return s.apply(document, nil)
+}
+
+func (s *Service) ApplyRevision(document *config.Document, expected uint64) (Result, error) {
+	return s.apply(document, &expected)
+}
+
+func (s *Service) apply(document *config.Document, expected *uint64) (Result, error) {
 	if !document.Valid() {
 		return Result{}, errors.New("control: validated config is required")
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if expected != nil && *expected != s.active.info.Revision {
+		return Result{}, ErrConflict
+	}
 	current := s.active.revision.document
 	if !current.RestartCompatible(document) {
 		return Result{}, errors.New("control: proxies, listeners, upstreams, TLS and runtime limits require restart")
 	}
 	if current.Equal(document) {
-		return Result{Info: s.active.info}, nil
+		result := Result{Info: s.active.info}
+		if s.persist != nil {
+			if err := s.persist(document, result); err != nil {
+				return Result{}, err
+			}
+		}
+		return result, nil
 	}
 	evaluator, err := engine.New(document)
 	if err != nil {
 		return Result{}, err
 	}
+	next := s.active.info
+	next.Revision++
+	next.ControlSequence++
+	next.AppliedAt = time.Now().UTC()
+	result := Result{Changed: true, Info: next}
+	if s.persist != nil {
+		if err := s.persist(document, result); err != nil {
+			return Result{}, err
+		}
+	}
 	s.active.revision = &revision{document: *document, engine: evaluator}
-	s.active.info.Revision++
-	s.active.info.ControlSequence++
-	s.active.info.AppliedAt = time.Now().UTC()
-	return Result{Changed: true, Info: s.active.info}, nil
+	s.active.info = next
+	return result, nil
 }
 
 func (s *Service) Reload(data []byte, filename string) (Result, error) {

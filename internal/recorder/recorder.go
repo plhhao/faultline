@@ -57,17 +57,18 @@ type Counters struct {
 }
 
 type Recorder struct {
-	mu     sync.Mutex
-	counts Counters
-	queue  chan Event
-	done   chan struct{}
-	abort  chan struct{}
-	once   sync.Once
-	closed bool
+	mu       sync.Mutex
+	counts   Counters
+	outcomes map[string]uint64
+	queue    chan Event
+	done     chan struct{}
+	abort    chan struct{}
+	once     sync.Once
+	closed   bool
 }
 
 func New(output io.Writer, capacity int) *Recorder {
-	r := &Recorder{queue: make(chan Event, capacity), done: make(chan struct{}), abort: make(chan struct{})}
+	r := &Recorder{outcomes: map[string]uint64{}, queue: make(chan Event, capacity), done: make(chan struct{}), abort: make(chan struct{})}
 	go r.write(output)
 	return r
 }
@@ -94,6 +95,9 @@ func (r *Recorder) Record(e Event) {
 		r.counts.Applied++
 		r.counts.ActiveFaults++
 	case "flow_finished":
+		if _, exists := r.outcomes[e.Outcome]; exists || len(r.outcomes) < 32 {
+			r.outcomes[e.Outcome]++
+		}
 		r.counts.Active--
 		if e.Applied {
 			r.counts.ActiveFaults--
@@ -162,4 +166,18 @@ func (r *Recorder) Close(ctx context.Context) error {
 		r.once.Do(func() { close(r.abort) })
 		return ctx.Err()
 	}
+}
+
+// Outcomes returns bounded run totals, independent of event queue delivery.
+func (r *Recorder) Outcomes() map[string]uint64 {
+	result := map[string]uint64{}
+	if r == nil {
+		return result
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for key, value := range r.outcomes {
+		result[key] = value
+	}
+	return result
 }

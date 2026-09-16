@@ -2,6 +2,40 @@
 
 Completed work following DEFINE → PLAN → BUILD → VERIFY → REVIEW.
 
+## 2026-09-16
+
+- Added a shared teal F/fault-line SVG favicon and 36px header logo before FAULTLINE in the embedded admin UI. Extended public asset serving and its existing test; targeted remote asset/session test and whitespace checks passed. Browser visual confirmation remains pending for this addition.
+
+- Closed Phase 7 (P19/P20/P20a) after the user reported every tester-guide case PASS, including operations, Docker, path patterns and diff UI. Updated checklists, acceptance and roadmap; reviewed documentation consistency and whitespace. Manual results are user-reported; no runtime tests rerun.
+
+- Corrected the tester Docker command to mount `/tmp` with `--tmpfs /tmp:mode=1777`, matching the managed integration fixture and allowing host UID 501 to create its admin directory. Reviewed against Dockerfile ownership and integration arguments; whitespace passed. Docker was not rerun for this documentation fix.
+
+- Recorded user-reported U1–U9 PASS in the tester guide, P20 notes and acceptance mapping. Operational/Docker and supplemental path-pattern/diff checks remain separately scoped; documentation reviewed, no runtime tests rerun.
+
+- Fixed false null/absent highlights for optional Fault parameters in `internal/control/remote/ui/diff.js` without mutating drafts or suppressing actual zero/empty-string values. Updated P20 notes; all six Node diff tests and whitespace checks passed. Browser confirmation remains with the tester.
+
+- Added field-level Active/Draft rule diff highlighting in `internal/control/remote/ui/diff.js`: added/removed/changed markers, proxy/rule ID pairing, position changes and duplicate-ID warnings; renamed IDs appear as remove/add. Served the embedded diff script and added tester instructions. Five Node logic/render tests, app syntax, remote asset/session test and whitespace checks passed. Browser visual/interaction acceptance remains pending.
+
+- Made the Runtime readiness label uppercase, bold and 20px in `internal/control/remote/ui/style.css`. Checked the readiness DOM target and whitespace; browser visual verification remains pending.
+
+## 2026-09-15
+
+- Removed the duplicate large injection status from the Runtime heading in `internal/control/remote/ui/`; retained the status badge beside Enable/Disable and removed obsolete DOM updates. JavaScript syntax, DOM-reference and whitespace checks passed; browser confirmation remains pending.
+
+- Revised injection feedback in `internal/control/remote/ui/` after user approval: removed sticky header, placed ON/OFF badge beside Runtime controls, added dismissible bottom-corner notifications (success expires after 5s, errors persist). Updated tester retest instructions and phase 7 notes. JavaScript syntax, DOM references/unique IDs, remote asset/session test and whitespace checks passed; visual/interaction acceptance remains with the user.
+
+- Addressed tester U1–U4 feedback in `internal/control/remote/ui/`: sticky injection badge, pending/confirmed toggle feedback, stale status-response guard, scrolling/focus to operation errors, phase choices constrained by fault/direction, and method/observation retention explanations. Recorded user U1–U4 PASS and added focused retest instructions in `examples/tester/README.md` and phase 7 plans. JavaScript syntax, 7-action × 2-direction phase checks, remote asset/session test, documentation link targets and whitespace passed. Browser acceptance of the revised UI remains pending; P20 stays In progress.
+
+- Added `TestGRPCHoldResponseClientDeadline` in `tests/integration/grpc_test.go`: plaintext, TLS and mTLS on both legs; 10s response hold with 1s client deadline and 15s proxy timeout. Verifies upstream processing and fault entry before deadline, client `DeadlineExceeded`, applied/canceled report, prompt hold cleanup and a successful subsequent RPC with one inflight slot. Targeted test passed three consecutive runs with race detection (9 subcases); integration-package vet and whitespace checks passed. No production changes; mixed TLS modes and Docker were not rerun for this addition.
+
+- Implemented P20a path-pattern backend and UI in config/engine/remote: whole-segment `:param`, exclusive exact/pattern fields, unchanged first-match ownership and query forwarding, Any/Exact/Pattern form. Added config/engine/HTTP1/HTTP2 tests and API persistence/gRPC regressions, fixture and manual UI checklist in `examples/tester/`; synchronized specification and phase plans. Full Go race suite, vet, CLI build/fixture validation and JavaScript syntax passed. P20a remains In progress pending user UI acceptance; Docker opt-in not rerun.
+
+- Added planned P20a path-pattern work in `plans/07-tester-experience/03-path-pattern.md` and synchronized phase/roadmap indexes. Proposed separate `match.path_pattern` with single-segment `:param`, preserving exact matching and query forwarding; defined schema, engine, API/UI, persistence and six acceptance criteria. Verified local link targets, workflow sections, acceptance mapping and whitespace. Documentation only; implementation and UI acceptance remain pending.
+
+- Completed P19 managed administration in `internal/control/remote/`, control persistence/revision publication and CLI `user/configure`: independent viewer/editor accounts, HTTPS sessions/CSRF, durable config/apply result and bounded audit, fail-closed writes, read-only Unix admin in managed mode. Added embedded rule-editing UI, shared action capabilities, bounded outcome counters and `examples/tester/` setup/manual-test guide. Full Go tests/race, final targeted race, vet, CLI build/help, real binary and Docker HTTPS/apply/restart smoke, JavaScript syntax and setup-script smoke passed; checked 115 local links/anchors, DOM IDs, 13 AC mappings and whitespace. Docker uses tmpfs for runtime sockets and a separate data volume. P20/browser interaction and visual acceptance remain pending user testing; phase 7 remains In progress. See `plans/07-tester-experience/acceptance.md` for evidence and storage/session/draft limits.
+
+- Updated phase 7 plans in `plans/07-tester-experience/`, `plans/README.md` and `specific.md` to Planned: single-instance API/UI, persistent managed config with revision checks, disabled-by-default restart, independent login with two instance-wide roles, HTTPS and rule editing on existing proxies. Defined P19 → P20 order and 13 acceptance criteria; implementation remains pending. Verified 78 local links/anchors, plan statuses, workflow sections, acceptance IDs and whitespace; reviewed scope and specification consistency. Runtime tests were not run for this documentation-only update.
+
 ## 2026-09-14
 
 - Completed phase 6 (P17 → P16 → P18): HTTP/2 on both legs, optional per-leg mTLS, unary gRPC service/method/metadata matching, and request/response truncate/throttle. Updated config validation/TLS restart fingerprints, shared proxy stream lifecycle, body fault wrappers, recorder protocol/status, runnable gRPC examples and binary/Docker fixtures; recorded 15 AC in `plans/06-protocol-extensions/acceptance.md`. Full tests and final full race suite, vet, CLI build, example validation, binary smoke, Docker MVP/payment regression and phase 6 smoke passed; checked 130 local documentation links/anchors and whitespace. Review fixed HTTP/2 connection-closing headers and preserved upstream status in applied events. gRPC streaming/certificate hot reload remain deferred; each flow owns a fresh upstream connection to prevent proxy retries.

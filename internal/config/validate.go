@@ -5,6 +5,7 @@ import (
 	"math"
 	"net"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -97,7 +98,7 @@ func validate(c *Config, base string) (map[string][32]byte, error) {
 			if r.Match.Service != "" && !identifier(r.Match.Service) {
 				return nil, invalid(rp+".match.service", "invalid service name")
 			}
-			if p.Protocol != "http1" && r.Fault.Action == "close_connection" || p.Protocol == "grpc" && r.Fault.Action == "respond" {
+			if !slices.Contains(Actions(p.Protocol), r.Fault.Action) {
 				return nil, invalid(rp+".fault.action", "unsupported capability for protocol")
 			}
 			if err := validateRule(r, rp); err != nil {
@@ -158,6 +159,14 @@ func validateRule(r *Rule, path string) error {
 	}
 	if r.Match.Path != "" && (!strings.HasPrefix(r.Match.Path, "/") || strings.ContainsAny(r.Match.Path, "?#\r\n")) {
 		return invalid(path+".match.path", "expected an exact path without query or fragment")
+	}
+	if r.Match.PathPattern != "" {
+		if r.Match.Path != "" {
+			return invalid(path+".match.path_pattern", "cannot combine path and path_pattern")
+		}
+		if !validPathPattern(r.Match.PathPattern) {
+			return invalid(path+".match.path_pattern", "expected an absolute path with whole-segment :name parameters; no duplicate names, wildcard, query or fragment")
+		}
 	}
 	headers := map[string]string{}
 	for name, value := range r.Match.Headers {
@@ -270,4 +279,30 @@ func validateFault(f Fault, path string) error {
 		return invalid(path+".body", "not supported by this action")
 	}
 	return nil
+}
+
+func validPathPattern(pattern string) bool {
+	if !strings.HasPrefix(pattern, "/") || strings.ContainsAny(pattern, "*?#\r\n") {
+		return false
+	}
+	names := map[string]bool{}
+	for segment := range strings.SplitSeq(pattern, "/") {
+		if !strings.Contains(segment, ":") {
+			continue
+		}
+		if !strings.HasPrefix(segment, ":") || len(segment) == 1 {
+			return false
+		}
+		name := segment[1:]
+		for i, c := range name {
+			if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_' || i > 0 && c >= '0' && c <= '9') {
+				return false
+			}
+		}
+		if names[name] {
+			return false
+		}
+		names[name] = true
+	}
+	return true
 }

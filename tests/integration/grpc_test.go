@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"faultline/examples/grpc/unary"
+	"faultline/internal/config"
 	"faultline/internal/fault"
 	httpproxy "faultline/internal/proxy/http"
 	"google.golang.org/grpc"
@@ -167,7 +168,7 @@ func TestGRPCSelectorsAndReload(t *testing.T) {
 	for _, selector := range []string{"probability: 0", "probability: 1", "nth: 2", "every: 2"} {
 		t.Run(selector, func(t *testing.T) {
 			upstream, _ := rpcServer(t, 0, id, unary.Echo{})
-			rules := "    rules:\n    - id: first\n      match: {service: faultline.demo.Echo, method: Call}\n      select: {" + selector + "}\n      fault: {action: delay, phase: before_upstream_request, duration: 1ms}\n    - id: second\n      select: {probability: 1}\n      fault: {action: delay, phase: before_upstream_request, duration: 1ms}\n"
+			rules := "    rules:\n    - id: first\n      match: {service: faultline.demo.Echo, method: Call, path_pattern: /faultline.demo.Echo/:method}\n      select: {" + selector + "}\n      fault: {action: delay, phase: before_upstream_request, duration: 1ms}\n    - id: second\n      select: {probability: 1}\n      fault: {action: delay, phase: before_upstream_request, duration: 1ms}\n"
 			addr := address(t)
 			reports := make(chan httpproxy.Report, 1)
 			doc := extensionDoc(t, "grpc", addr, upstream, rules)
@@ -316,6 +317,99 @@ func TestGRPCActiveCancellation(t *testing.T) {
 			r := receive(t, reports)
 			if r.Applied || !r.NotReached || r.Outcome != "canceled" {
 				t.Fatalf("%+v", r)
+			}
+		})
+	}
+}
+
+func TestGRPCHoldResponseClientDeadline(t *testing.T) {
+	id := identity(t, false)
+	for mode, name := range []string{"plaintext", "tls", "mtls"} {
+		t.Run(name, func(t *testing.T) {
+			completed := make(chan struct{}, 1)
+			upstream, calls := rpcServer(t, mode, id, rpcFunc(func(ctx context.Context, request *wrapperspb.BytesValue) (*wrapperspb.BytesValue, error) {
+				completed <- struct{}{}
+				return request, nil
+			}))
+			addr := address(t)
+			rules := `    rules:
+    - id: hold-response
+      select: {probability: 1}
+      fault: {action: hold_response, phase: after_upstream_headers, max_duration: 10s}
+`
+			doc := extensionDoc(t, "grpc", addr, upstream, tlsFields(mode, mode, id)+rules)
+			cfg := doc.Config()
+			cfg.Runtime.MaxInflightRequests = 1
+			cfg.Runtime.RequestTimeout = 15 * time.Second
+			data, err := config.Encode(cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			doc, err = config.Parse(data, "test.yaml")
+			if err != nil {
+				t.Fatal(err)
+			}
+			entered := make(chan struct{}, 1)
+			reports := make(chan httpproxy.Report, 1)
+			service, _ := start(t, doc, false, httpproxy.Options{Executor: notifyingExecutor{entered: entered}, Observe: func(r httpproxy.Report) { reports <- r }})
+			conn := rpcClient(t, addr, mode, id)
+			invoke := func(ctx context.Context) error {
+				response := new(wrapperspb.BytesValue)
+				err := conn.Invoke(ctx, unary.Method, wrapperspb.Bytes([]byte("payment committed")), response)
+				if err == nil && !bytes.Equal(response.Value, []byte("payment committed")) {
+					return fmt.Errorf("unexpected response %q", response.Value)
+				}
+				return err
+			}
+			// Establish the client connection before starting the deadline-sensitive call.
+			warmup, cancelWarmup := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancelWarmup()
+			if err := invoke(warmup); err != nil {
+				t.Fatal(err)
+			}
+			receive(t, completed)
+			receive(t, reports)
+			service.SetEnabled(true)
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			done := make(chan error, 1)
+			go func() { done <- invoke(ctx) }()
+			receive(t, completed)
+			receive(t, entered)
+			if ctx.Err() != nil {
+				t.Fatal("client deadline elapsed before hold started")
+			}
+			select {
+			case err := <-done:
+				t.Fatalf("RPC finished before hold deadline: %v", err)
+			default:
+			}
+			if err := receive(t, done); status.Code(err) != codes.DeadlineExceeded {
+				t.Fatalf("want DeadlineExceeded, got %v", err)
+			}
+			report := receive(t, reports)
+			if report.Decision.RuleID != "hold-response" || !report.Decision.Selected || !report.Reached || !report.Applied || report.NotReached || report.Outcome != "canceled" || report.Err == nil {
+				t.Fatalf("hold was not applied and canceled: %+v", report)
+			}
+			if report.FinishedAt.Sub(report.StartedAt) >= 5*time.Second {
+				t.Fatal("hold did not stop promptly at client deadline")
+			}
+			if calls.Load() != 2 {
+				t.Fatalf("upstream calls=%d, want warmup + held RPC", calls.Load())
+			}
+
+			// One available slot and the same client connection must remain usable.
+			service.SetEnabled(false)
+			next, cancelNext := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancelNext()
+			if err := invoke(next); err != nil {
+				t.Fatalf("request after cancellation: %v", err)
+			}
+			receive(t, completed)
+			after := receive(t, reports)
+			if after.Applied || after.Decision.Selected || calls.Load() != 3 {
+				t.Fatalf("unexpected recovery: %+v calls=%d", after, calls.Load())
 			}
 		})
 	}

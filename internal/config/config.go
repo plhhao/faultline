@@ -58,10 +58,11 @@ type Rule struct {
 }
 
 type Matcher struct {
-	Method  string            `yaml:"method"`
-	Service string            `yaml:"service"`
-	Path    string            `yaml:"path"`
-	Headers map[string]string `yaml:"headers"`
+	PathPattern string            `yaml:"path_pattern"`
+	Method      string            `yaml:"method"`
+	Service     string            `yaml:"service"`
+	Path        string            `yaml:"path"`
+	Headers     map[string]string `yaml:"headers"`
 }
 
 type Selector struct {

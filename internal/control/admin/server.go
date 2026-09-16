@@ -40,6 +40,7 @@ type Server struct {
 	listener  *net.UnixListener
 	errors    chan error
 	done      chan struct{}
+	readOnly  bool
 	mu        sync.Mutex
 }
 
@@ -47,7 +48,7 @@ func DefaultSocket() string {
 	return filepath.Join("/tmp", fmt.Sprintf("faultline-%d", os.Getuid()), "admin.sock")
 }
 
-func Start(socket string, service *control.Service, records *recorder.Recorder, listeners func() []control.ListenerStatus) (*Server, error) {
+func Start(socket string, service *control.Service, records *recorder.Recorder, listeners func() []control.ListenerStatus, readOnly ...bool) (*Server, error) {
 	socket, err := filepath.Abs(socket)
 	if err != nil {
 		return nil, err
@@ -70,6 +71,7 @@ func Start(socket string, service *control.Service, records *recorder.Recorder, 
 		return nil, err
 	}
 	s := &Server{service: service, recorder: records, listeners: listeners, listener: l, errors: make(chan error, 1), done: make(chan struct{})}
+	s.readOnly = len(readOnly) > 0 && readOnly[0]
 	s.server = &http.Server{Handler: http.HandlerFunc(s.handle), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 5 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 5 * time.Second, MaxHeaderBytes: 8192, ErrorLog: log.New(io.Discard, "", 0)}
 	go func() {
 		defer close(s.done)
@@ -120,6 +122,10 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method != http.MethodPost || (r.URL.Path != "/enable" && r.URL.Path != "/disable" && r.URL.Path != "/reload") {
 		writeError(w, http.StatusNotFound, errors.New("unknown admin operation"))
+		return
+	}
+	if s.readOnly {
+		writeError(w, http.StatusForbidden, errors.New("managed mode: use authenticated HTTPS API for mutations"))
 		return
 	}
 	var request struct {

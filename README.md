@@ -17,6 +17,10 @@ administration, JSON events, payment demo and binary/Docker delivery. See
 truncate and throttle. See the [examples and protocol contract](examples/grpc/README.md)
 and [15 acceptance criteria with verification results](plans/06-protocol-extensions/acceptance.md).
 
+**Phase 7:** managed HTTPS API and embedded tester UI are implemented; browser
+interaction acceptance is pending user testing. See the [tester setup and checklist](examples/tester/README.md)
+and [verification record](plans/07-tester-experience/acceptance.md).
+
 ## Run locally
 
 ```sh
@@ -70,6 +74,23 @@ Disable changes new requests only; it does not end those flows.
 In a container, run the admin CLI using `docker exec` and the container's config
 paths. No admin TCP port needs publishing. See [Docker instructions](deploy/docker/README.md)
 for the non-root image, mounted config/certs and local admin commands.
+
+## Shared tester server
+
+Use `serve --data-dir DIR --api-listen HOST:PORT --api-cert PEM --api-key PEM`
+with `--config FILE` to enable managed mode. Create individual viewer/editor
+accounts first with `faultline user`; passwords are read from stdin. The
+[setup script and guide](examples/tester/README.md) prepare an isolated local
+HTTP/gRPC fixture and describe HTTPS, accounts, Docker and manual UI tests.
+
+The file bootstraps managed state only once. Later starts restore the last
+committed config/revision and default injection to disabled. All rule edits use
+the authenticated HTTPS API with a revision precondition; the Unix admin socket
+is read-only in this mode. Change infrastructure while stopped with
+`configure --data-dir DIR --config FILE`. Omit `--data-dir` for the existing
+file/CLI workflow. UI assets are embedded in the binary; Node is not a runtime
+dependency. The API also exposes bounded per-run outcome counts independently
+of JSON event delivery.
 
 ## Events and counters
 

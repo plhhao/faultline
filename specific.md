@@ -310,6 +310,9 @@ Semantics của ví dụ:
 - Khi injection enabled, 20% các `POST /payments` được chọn giữ response; không áp dụng cho mọi request của proxy và không yêu cầu app thêm header.
 - Mỗi `GET /payments` eligible thứ 10 bị chậm thêm 500 ms trước khi gọi upstream.
 - Exact path không gồm query string; header name không phân biệt hoa thường, header value match chính xác. Các điều kiện matcher kết hợp AND; `match: {}` nghĩa là tất cả request.
+- `match.path_pattern` hỗ trợ tham số nguyên đoạn `:name`, ví dụ `/payment/:id`; không dùng cùng `match.path` khác rỗng. Tên tham số `[A-Za-z_][A-Za-z0-9_]*`, không trùng; không hỗ trợ wildcard, regex, query/fragment hay tham số nhúng như `item-:id`. Match toàn path, phân biệt hoa/thường và trailing slash; tham số phải không rỗng.
+- Exact và pattern dùng path đã decode (`r.URL.Path`) của adapter: `%2F` thành dấu `/`, `%252F` chỉ decode một lần thành `%2F`. Không rewrite URL/query gửi upstream. Rule xét theo thứ tự khai báo, không tự ưu tiên exact: đặt `/payment/history` trước `/payment/:id` nếu muốn rule riêng cho history.
+
 - Request không match rule nào được chuyển tiếp bình thường.
 - Header dùng match vẫn được chuyển tiếp; chỉ thêm thao tác strip nếu có yêu cầu riêng.
 - Upstream MVP nhận origin `http://host:port` hoặc `https://host:port`, giữ path/query của request; không hỗ trợ rewrite hoặc load balancing.
@@ -466,7 +469,13 @@ Như vậy **100% fault trong file không cản app startup**, trừ khi ngườ
 
 UI tương lai phải sử dụng cùng schema, validation và apply service. Người dùng cần thấy bản nháp khác gì bản đang chạy, revision nào đã được áp dụng và lỗi apply nếu có. Không để UI có một engine rule riêng.
 
-Khi có nhiều người chỉnh, API cần revision precondition để tránh ghi đè cập nhật của người khác. Khi chuyển sang API/UI, phải chốt nơi lưu cấu hình bền vững; không cho file và UI cùng ghi mà không có quy tắc nguồn cấu hình chính.
+Khi có nhiều người chỉnh, API cần revision precondition để tránh ghi đè cập nhật của người khác.
+
+**Phạm vi phase 07 đã chốt ngày 2026-09-15 — API/UI đã hiện thực, nghiệm thu tương tác UI còn pending:** một instance trên server test chung có nhiều proxy, đăng nhập độc lập với danh tính riêng và hai quyền toàn instance (xem; chỉnh/apply/bật-tắt), API/UI truy cập qua HTTPS. Giữ chế độ file/CLI cho dev/CI; chế độ API/UI dùng file để bootstrap lần đầu, sau đó config đã apply lưu bền trên server là nguồn chính. CLI reload file không được ghi đè ngoài quy trình revision. Restart phục hồi config đã apply gần nhất, injection mặc định disabled; không phục hồi enabled từ lần chạy trước, giữ lựa chọn chủ động `--start-enabled` hiện có.
+
+Contract hiện thực: `serve --data-dir` bật managed mode; `state.json` lưu config hợp nhất, revision, apply result và 1.000 audit gần nhất. Apply commit storage trước khi công bố snapshot; lỗi durability sau rename dừng instance để phục hồi. Unix admin chỉ đọc status; `configure --data-dir --config` thay config hạ tầng khi instance đã dừng. Tài khoản qua lệnh local `user`, hai role `viewer`/`editor`; session 8 giờ, cookie Secure/HttpOnly/SameSite và CSRF token, giới hạn 20 login/phút toàn instance và 256 session. Password/role thay đổi hoặc xóa user thu hồi session ở request kế tiếp. Draft lưu trong bộ nhớ tab, không qua reload trang; API chỉ nhận rules và base revision. Xem [hướng dẫn vận hành/test](examples/tester/README.md) và [kết quả kiểm chứng](plans/07-tester-experience/acceptance.md).
+
+Tester chỉnh rules, tỷ lệ và tham số fault trên proxy có sẵn; xem diff, validate/apply result, draft/active revision, status và counters. Listener/upstream/TLS do người vận hành quản lý. Chưa gồm quản lý nhiều server hoặc lịch sử traffic dài hạn. Xem [phase 07](plans/07-tester-experience/README.md) và các tiêu chí P19/P20 cho persistence, quyền, audit và UI.
 
 ## 9. Kiến trúc có thể mở rộng
 
