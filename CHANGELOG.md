@@ -4,6 +4,12 @@ Completed work following DEFINE → PLAN → BUILD → VERIFY → REVIEW.
 
 ## 2026-09-21
 
+- Rewrote the root README as an English GitHub landing page with an executable
+  upstream/proxy quick start and direct documentation links. Translated the
+  complete `docs/` user-documentation set to English and replaced workspace-only
+  `rtk` commands with public CLI/Go commands. Markdown whitespace and local links
+  were checked; documentation-only change.
+
 - Reworked the root README for GitHub visitors: added CI status, a supported-scope
   table, clone/build quick start and public Go commands; removed workspace-only
   `rtk` invocations and phase-diary presentation. Reviewed Markdown links and

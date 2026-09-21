@@ -1,6 +1,6 @@
-# Cấu hình và rule
+# Configuration and rules
 
-Ví dụ HTTP tối thiểu:
+Minimal HTTP configuration:
 
 ```yaml
 api_version: faultline/v1alpha1
@@ -20,66 +20,69 @@ proxies:
         fault: {action: delay, phase: before_upstream_request, duration: 2s}
 ```
 
-Mỗi flow chỉ dùng rule phù hợp đầu tiên. `enabled: false` bỏ qua rule đó để xét
-rule tiếp theo. Injection toàn cục vẫn phải được bật qua CLI hoặc UI.
+Each flow uses the first matching rule. `enabled: false` skips that rule and
+continues evaluation. Global injection must also be enabled through the CLI or
+the managed UI.
 
-## Match và selector
+## Matchers and selectors
 
-Điều kiện match kết hợp bằng AND. Để trống một điều kiện nghĩa là match mọi giá
-trị của điều kiện đó.
+Matchers combine with AND. An omitted matcher matches every value for that
+field.
 
-| Trường | Ý nghĩa |
+| Field | Meaning |
 | --- | --- |
-| `method` | HTTP method chính xác; method gốc vẫn được chuyển tiếp. |
-| `path` | Path chính xác, không gồm query string. |
-| `path_pattern` | Absolute path; `:name` match đúng một segment không rỗng. |
-| `headers` | Object header/metadata, value là string chính xác. |
-| `service` | Service gRPC chính xác. |
+| `method` | Exact HTTP method; the original method is still forwarded. |
+| `path` | Exact path without its query string. |
+| `path_pattern` | Absolute path; `:name` matches one non-empty segment. |
+| `headers` | Header/metadata object with exact string values. |
+| `service` | Exact gRPC service. |
 
-`path_pattern: /payment/:id` match `/payment/42` và `/payment/history`, nhưng
-không match `/payment/42/items`. Đặt exact path `/payment/history` trước pattern
-nếu history là ngoại lệ.
+`path_pattern: /payment/:id` matches `/payment/42` and `/payment/history`, but
+not `/payment/42/items`. Put an exact `/payment/history` rule before the pattern
+when it is an exception.
 
-Chỉ dùng đúng một selector:
+Use exactly one selector:
 
 ```yaml
-select: {probability: 0.2} # 20% eligible flows
-select: {nth: 3}           # eligible flow thứ ba
-select: {every: 5}         # mỗi eligible flow thứ năm
+select: {probability: 0.2} # 20% of eligible flows
+select: {nth: 3}           # third eligible flow
+select: {every: 5}         # every fifth eligible flow
 ```
 
-Probability `0` pass-through nhưng vẫn là rule đã match; traffic không rơi xuống
-rule tiếp theo. Selector chỉ đếm khi injection toàn cục bật.
+Probability `0` passes through but still owns the matching flow; it does not
+fall through to the next rule. Selectors count only while global injection is
+enabled.
 
-## Fault HTTP, HTTP/2 và gRPC unary
+## HTTP, HTTP/2, and unary gRPC faults
 
-| Action | Phase | Tham số |
+| Action | Phase | Parameters |
 | --- | --- | --- |
-| `delay` | trước request hoặc sau upstream headers | `duration` |
+| `delay` | before request or after upstream headers | `duration` |
 | `respond` | `before_upstream_request` | `status`, `body` |
-| `close_connection` | HTTP/1, trước request hoặc sau headers | không có |
-| `hold_request` | trước request | `max_duration` |
-| `hold_response` | sau upstream headers | `max_duration` |
-| `truncate` | request hoặc response | `direction`, `bytes` |
-| `throttle` | request hoặc response | `direction`, `bytes_per_second` |
+| `close_connection` | HTTP/1 before request or after headers | none |
+| `hold_request` | before request | `max_duration` |
+| `hold_response` | after upstream headers | `max_duration` |
+| `truncate` | request or response | `direction`, `bytes` |
+| `throttle` | request or response | `direction`, `bytes_per_second` |
 
-`truncate` và `throttle` chọn phase theo direction: request dùng
-`before_upstream_request`, response dùng `after_upstream_headers`. gRPC unary
-không hỗ trợ `respond` hoặc `close_connection`. Chi tiết HTTP/2, gRPC và mTLS ở
-[examples/grpc/README.md](../examples/grpc/README.md).
+`truncate` and `throttle` use `before_upstream_request` for request direction
+and `after_upstream_headers` for response direction. Unary gRPC does not support
+`respond` or `close_connection`. See [the gRPC example](../examples/grpc/README.md)
+for HTTP/2, gRPC, and mTLS details.
 
-PostgreSQL/MySQL chỉ nhận matcher `{}`, phase `after_commit`, và ba action
-`delay`, `hold_response`, `close_connection`.
+PostgreSQL and MySQL accept only matcher `{}`, phase `after_commit`, and
+`delay`, `hold_response`, or `close_connection` actions.
 
-## Reload hay restart
+## Reload or restart
 
-`reload` chỉ thay rule và seed. Listener, protocol, upstream, TLS và runtime cần
-restart. Flow đang chạy giữ snapshot cũ; rule mới được publish atomically.
+`reload` changes only rules and seed. Listener, protocol, upstream, TLS, and
+runtime settings require restart. In-flight flows retain their old snapshot;
+the new rule snapshot is published atomically.
 
 ```bash
-rtk proxy ./bin/faultline reload --config /absolute/path/config.yaml \
+./bin/faultline reload --config /absolute/path/config.yaml \
   --admin-socket /tmp/faultline-http/admin.sock
 ```
 
-Multi-file config dùng `include` ở root; xem
-[examples/http/multi-file/faultline.yaml](../examples/http/multi-file/faultline.yaml).
+Multi-file configuration uses root-level `include`; see the
+[multi-file example](../examples/http/multi-file/faultline.yaml).

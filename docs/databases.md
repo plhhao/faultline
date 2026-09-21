@@ -1,8 +1,8 @@
-# PostgreSQL và MySQL
+# PostgreSQL and MySQL
 
-Hai adapter database mô phỏng database đã xác nhận explicit `COMMIT` nhưng client
-không nhận ACK. Đây là test retry/idempotency, không phải bằng chứng transaction
-đã rollback.
+The database adapters model a database that has confirmed an explicit `COMMIT`,
+but whose acknowledgement does not reach the client. They test retry and
+idempotency behavior; they do not prove that a transaction was rolled back.
 
 | | PostgreSQL | MySQL |
 | --- | --- | --- |
@@ -13,7 +13,7 @@ không nhận ACK. Đây là test retry/idempotency, không phải bằng chứn
 | Actions | delay, hold_response, close_connection | delay, hold_response, close_connection |
 | Match | `{}` | `{}` |
 
-Ví dụ MySQL:
+MySQL example:
 
 ```yaml
 - id: database
@@ -27,20 +27,21 @@ Ví dụ MySQL:
       fault: {action: close_connection, phase: after_commit}
 ```
 
-Đổi app DSN sang listener Faultline, nhưng giữ kết nối direct riêng để kiểm tra
-dữ liệu sau lỗi client.
+Point the application DSN at the Faultline listener. Keep a separate direct
+connection for checking persisted data after a client-side error.
 
-- `delay` gửi ACK sau `duration`; client có thể timeout trước đó.
-- `hold_response` giữ ACK tới `max_duration`, sau đó đóng connection.
-- `close_connection` đóng ngay sau upstream xác nhận COMMIT.
-- Disable/reload không giải phóng fault đã bắt đầu; command cycle mới nhận snapshot mới.
-- Autocommit, implicit commit, hay COMMIT ngoài grammar hỗ trợ không là điểm inject.
+- `delay` sends the acknowledgement after `duration`; the client may time out first.
+- `hold_response` withholds the acknowledgement until `max_duration`, then closes the connection.
+- `close_connection` closes immediately after the upstream confirms COMMIT.
+- Disable or reload does not release a fault that has already started; new command cycles use the new snapshot.
+- Autocommit, implicit commits, and COMMIT forms outside the supported grammar are not injection points.
 
-Faultline không retry commit. Nếu application retry cùng operation sau lỗi, bảng
-thường có thể có 2 row; unique operation ID/idempotency có thể giữ lại 1 row.
+Faultline never retries COMMIT. Retrying the same operation after a lost
+acknowledgement can create two rows; an operation ID or idempotency constraint
+can retain one.
 
-Chạy demo tại [PostgreSQL](../examples/postgresql/README.md) hoặc
-[MySQL](../examples/mysql/README.md). MySQL đã kiểm chứng `caching_sha2_password`,
-plaintext/plaintext hoặc TLS/TLS; TLS chỉ một chặng bị từ chối. Chi tiết giới hạn:
-[MySQL contract](../plans/09-semantic-adapters/mysql-contract.md) và
-[PostgreSQL contract](../plans/09-semantic-adapters/contract.md).
+Run the [PostgreSQL](../examples/postgresql/README.md) or
+[MySQL](../examples/mysql/README.md) demo. MySQL has been verified with
+`caching_sha2_password` and plaintext/plaintext or TLS/TLS connections; mixed
+TLS legs are rejected. See the [MySQL contract](../plans/09-semantic-adapters/mysql-contract.md)
+and [PostgreSQL contract](../plans/09-semantic-adapters/contract.md) for limits.

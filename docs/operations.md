@@ -1,66 +1,74 @@
-# Vận hành bằng CLI
+# CLI operations
 
-Tất cả runtime command phải dùng cùng Unix socket với `serve`:
+All runtime commands must use the same Unix socket as `serve`:
 
 ```bash
-rtk proxy ./bin/faultline status --admin-socket /tmp/faultline/admin.sock
-rtk proxy ./bin/faultline enable --admin-socket /tmp/faultline/admin.sock
-rtk proxy ./bin/faultline disable --admin-socket /tmp/faultline/admin.sock
-rtk proxy ./bin/faultline reload --config /absolute/path/config.yaml \
+./bin/faultline status --admin-socket /tmp/faultline/admin.sock
+./bin/faultline enable --admin-socket /tmp/faultline/admin.sock
+./bin/faultline disable --admin-socket /tmp/faultline/admin.sock
+./bin/faultline reload --config /absolute/path/config.yaml \
   --admin-socket /tmp/faultline/admin.sock
 ```
 
-Socket mặc định là `/tmp/faultline-<uid>/admin.sock`. Sau crash, chỉ xóa socket
-cũ khi chắc chắn process cũ đã dừng; không xóa data directory để xử lý socket.
+The default socket is `/tmp/faultline-<uid>/admin.sock`. After a crash, remove
+a stale socket only after confirming that its process has stopped. Do not remove
+the managed data directory to solve a socket problem.
 
-## Đọc `status`
+## Reading `status`
 
-| Field | Ý nghĩa |
+| Field | Meaning |
 | --- | --- |
-| `ready` | Listener proxy đã mở, không chứng minh upstream/app sẵn sàng. |
-| `config_revision` | Revision cấu hình active. |
-| `injection_enabled` | Injection toàn cục. |
-| `revision_rule_counters` | Eligible/selected của rule ở revision active. |
-| `run_counters` | Tổng lifetime process: total, selected, applied, active… |
+| `ready` | Proxy listeners are open; it does not prove the upstream or application is ready. |
+| `config_revision` | Active configuration revision. |
+| `injection_enabled` | Global injection state. |
+| `revision_rule_counters` | Eligible and selected counts for rules in the active revision. |
+| `run_counters` | Process-lifetime totals: total, selected, applied, active, and more. |
 
-`active_fault_flows` có thể vẫn lớn hơn 0 sau `disable`: disable chỉ ảnh hưởng
-flow mới, không thả `hold_response` đã bắt đầu. Rule counters reset khi revision
-mới apply; run counters chỉ reset khi process restart.
+`active_fault_flows` can remain nonzero after `disable`: disable affects only
+new flows and does not release an existing `hold_response`. Rule counters reset
+for a new revision; run counters reset only when the process restarts.
 
-Runtime command timeout mặc định 5 giây. Nếu timeout, mutation có thể đã xảy ra;
-gọi `status` trước khi retry. Nonzero `dropped_events`, `write_errors` hoặc
-`pending_events` cho biết event artifact có thể không đầy đủ.
+Runtime commands default to a five-second timeout. A timed-out mutation may
+already have succeeded, so read `status` before retrying. Nonzero
+`dropped_events`, `write_errors`, or `pending_events` means the event artifact
+may be incomplete.
 
 ## Managed mode
 
-Với `--data-dir`, Unix admin socket chỉ đọc `status`; thay rule và enable/disable
-qua HTTPS UI/API có login.
+With `--data-dir`, the Unix socket exposes read-only `status`; rule changes and
+injection controls are available through the authenticated HTTPS UI/API.
 
-### Tài khoản UI
+### UI accounts
 
-Tạo tài khoản mới hoặc cập nhật password/quyền của tài khoản hiện có bằng lệnh
-`user`. Password phải được pipe vào stdin; không ghi password vào command
-history:
+Create an account or update its password/role with `user`. Pipe the password to
+stdin so it is not stored in shell history:
 
 ```bash
 read -r -s -p "Password: " faultline_password; printf "\n" >&2
-printf "%s" "$faultline_password" | rtk proxy ./bin/faultline user \
+printf "%s" "$faultline_password" | ./bin/faultline user \
   --data-dir /path/to/data --name alice --role editor
 unset faultline_password
 ```
 
-Role `viewer` chỉ xem; `editor` có thể chỉnh rule, apply và enable/disable.
-Chạy lại lệnh với cùng `--name` để đổi password hoặc quyền. Xóa tài khoản bằng
-`rtk proxy ./bin/faultline user --data-dir /path/to/data --name alice --delete`.
-Mọi session hiện có của tài khoản đó sẽ bị thu hồi.
-
-### Thay đổi hạ tầng
-
-Muốn đổi listener, upstream, TLS hoặc runtime, dừng instance trước rồi dùng:
+`viewer` can only inspect state; `editor` can change rules, apply drafts, and
+enable or disable injection. Re-run with the same `--name` to update an account.
+Delete an account with:
 
 ```bash
-rtk proxy ./bin/faultline configure \
+./bin/faultline user --data-dir /path/to/data --name alice --delete
+```
+
+Deleting or changing an account revokes its existing sessions.
+
+### Infrastructure changes
+
+To change a listener, upstream, TLS, or runtime setting, stop the instance and
+then run:
+
+```bash
+./bin/faultline configure \
   --data-dir /path/to/data --config /path/to/replacement.yaml
 ```
 
-`configure` thay toàn bộ managed config và bị từ chối khi instance đang chạy.
+`configure` replaces the complete managed configuration and rejects requests
+while the instance is running.

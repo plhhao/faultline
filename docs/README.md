@@ -1,18 +1,18 @@
-# Hướng dẫn sử dụng Faultline
+# Faultline documentation
 
-Faultline là proxy đặt giữa ứng dụng và dependency. Chuyển endpoint ứng dụng gọi
-sang listener Faultline, sau đó dùng rule để gây lỗi có kiểm soát và quan sát
-cách ứng dụng phản ứng.
+Faultline sits between an application and its dependency. Point the application
+at a Faultline listener, define deterministic fault rules, and observe how the
+application responds.
 
-| Mục đích | Tài liệu |
+| Goal | Document |
 | --- | --- |
-| Chạy HTTP đầu tiên | [Bắt đầu nhanh](getting-started.md) |
-| Triển khai trên server | [Deployment](deployment.md) |
-| Tra cứu mọi lệnh và flag | [Tham chiếu CLI](cli-reference.md) |
-| Viết rule và match traffic | [Cấu hình](configuration.md) |
-| Bật/tắt, reload, đọc counters | [Vận hành CLI](operations.md) |
-| Dùng giao diện quản trị HTTPS | [Tester UI](tester-ui.md) |
-| Test mất ACK COMMIT | [PostgreSQL và MySQL](databases.md) |
+| Run the first HTTP example | [Getting started](getting-started.md) |
+| Deploy on a server | [Deployment](deployment.md) |
+| Find every command and flag | [CLI reference](cli-reference.md) |
+| Write rules and match traffic | [Configuration](configuration.md) |
+| Toggle injection, reload, and read counters | [CLI operations](operations.md) |
+| Use the HTTPS administration UI | [Tester UI](tester-ui.md) |
+| Test a lost COMMIT acknowledgement | [PostgreSQL and MySQL](databases.md) |
 
-Các file dưới `examples/` là demo có thể chạy. Kế hoạch và bằng chứng kiểm thử
-chi tiết nằm trong `plans/`.
+Runnable demonstrations live under `examples/`. Implementation plans and
+detailed verification evidence live under `plans/`.

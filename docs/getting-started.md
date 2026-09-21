@@ -1,52 +1,54 @@
-# Bắt đầu nhanh với HTTP
+# HTTP quick start
 
-Ví dụ này dùng upstream HTTP tại `127.0.0.1:9000` và Faultline listener tại
-`127.0.0.1:8080`.
+This example uses an HTTP upstream at `127.0.0.1:9000` and a Faultline listener
+at `127.0.0.1:8080`.
 
-## Build và kiểm tra cấu hình
+## Build and validate
 
-Tại thư mục gốc repository:
+From the repository root:
 
 ```bash
-rtk proxy go build -o bin/faultline ./cmd/faultline
-rtk proxy ./bin/faultline validate --config examples/http/faultline.yaml
+go build -o bin/faultline ./cmd/faultline
+./bin/faultline validate --config examples/http/faultline.yaml
 ```
 
-`validate` chỉ kiểm tra YAML và file TLS tham chiếu; nó không mở port hay gọi
-upstream.
+`validate` checks YAML, included files, and referenced TLS files. It does not
+open a listener or contact the upstream.
 
-## Khởi động
+## Start the example
 
-Terminal 1 chạy demo upstream:
+Start the demonstration upstream in terminal 1:
 
 ```bash
-rtk proxy go run ./examples/http/paymentdemo/cmd serve --listen 127.0.0.1:9000
+go run ./examples/http/paymentdemo/cmd serve --listen 127.0.0.1:9000
 ```
 
-Terminal 2 chạy proxy:
+Start Faultline in terminal 2:
 
 ```bash
-rtk proxy ./bin/faultline serve \
+./bin/faultline serve \
   --config examples/http/faultline.yaml \
   --admin-socket /tmp/faultline-http/admin.sock
 ```
 
-Faultline nhận traffic ngay, nhưng injection mặc định tắt. Request đến port 8080
-được chuyển tiếp bình thường.
+Faultline accepts traffic immediately, but injection starts disabled. Requests
+to port 8080 initially pass through unchanged.
 
-## Bật rule và quan sát
+## Enable a rule and observe it
 
-Terminal 3:
+In terminal 3:
 
 ```bash
-rtk proxy ./bin/faultline enable --admin-socket /tmp/faultline-http/admin.sock
-rtk proxy curl -i http://127.0.0.1:8080/healthz
-rtk proxy ./bin/faultline status --admin-socket /tmp/faultline-http/admin.sock
-rtk proxy ./bin/faultline disable --admin-socket /tmp/faultline-http/admin.sock
+./bin/faultline enable --admin-socket /tmp/faultline-http/admin.sock
+curl -i http://127.0.0.1:8080/healthz
+./bin/faultline status --admin-socket /tmp/faultline-http/admin.sock
+./bin/faultline disable --admin-socket /tmp/faultline-http/admin.sock
 ```
 
-`serve` ghi JSON event theo từng dòng ra stdout. Lưu event để phân tích bằng cách
-redirect stdout sang file `events.ndjson`; readiness và lỗi vẫn đi ra stderr.
+`serve` writes newline-delimited JSON events to stdout. Redirect stdout to
+`events.ndjson` to keep an artifact; readiness messages and diagnostics remain
+on stderr.
 
-Đọc tiếp [Cấu hình](configuration.md) để thay rule và [Vận hành CLI](operations.md)
-để reload an toàn.
+Continue with [Configuration](configuration.md) to change rules and
+[CLI operations](operations.md) for safe reloads. The complete upstream demo is
+documented in [examples/http](../examples/http/README.md).

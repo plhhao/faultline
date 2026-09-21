@@ -1,36 +1,36 @@
 # Tester UI
 
-Tester UI cho editor tạo draft, validate, xem diff và apply qua HTTPS. Login độc
-lập, không có SSO.
+The Tester UI lets editors create a draft, validate it, review a diff, and apply
+it over HTTPS. Logins are independent; there is no SSO integration.
 
-## Khởi tạo local
+## Local setup
 
 ```bash
-rtk proxy python3 examples/tester/setup.py
+python3 examples/tester/setup.py
 ```
 
-Script tạo binary, certificate localhost, config HTTP/gRPC và account editor/
-viewer. Khởi động theo [hướng dẫn tester](../examples/tester/README.md), sau đó
-mở `https://localhost:8443`.
+The script builds the binary, creates localhost certificates, prepares HTTP/gRPC
+configuration, and creates editor/viewer accounts. Follow the
+[tester guide](../examples/tester/README.md), then open `https://localhost:8443`.
 
-## Luồng chỉnh rule
+## Editing a rule
 
-1. Chọn proxy và chỉnh rule trong draft.
-2. Chọn **Validate draft & review diff**.
-3. Đọc hai cột Active/Draft để xem field, rule hoặc thứ tự đã đổi.
-4. Chọn **Apply reviewed draft**. Revision tăng nhưng injection không tự bật.
-5. Bấm **Enable injection** để rule tác động traffic.
+1. Select a proxy and edit rules in the draft.
+2. Select **Validate draft & review diff**.
+3. Compare the Active and Draft columns for changed fields, rules, or order.
+4. Select **Apply reviewed draft**. The revision changes, but injection stays disabled.
+5. Select **Enable injection** to let rules affect new traffic.
 
-**Compare with latest active** chỉ cập nhật cột Active để so sánh, không sửa
-draft. **Use latest revision as draft base** đổi base revision để resolve conflict;
-draft hiện tại có thể ghi đè thay đổi editor khác. **Discard draft and load active**
-bỏ toàn bộ draft và nạp rule active.
+**Compare with latest active** updates only the Active comparison column.
+**Use latest revision as draft base** changes the revision precondition to solve
+a conflict; the current draft can overwrite another editor's change.
+**Discard draft and load active** removes the entire draft and loads active rules.
 
-Draft giữ trong bộ nhớ tab. Reload hoặc đóng tab làm mất draft. Khi session hết
-hạn, draft đã sửa được giữ để người dùng tự quyết định; draft chưa sửa sẽ nạp lại
-từ active config.
+Drafts live in browser-tab memory. Reloading or closing the tab loses them. On
+session expiry, an edited draft remains for the user to decide what to do with;
+an untouched draft reloads from the active configuration.
 
-Badge `Injection ON/OFF` là trạng thái server đã xác nhận. Status poll mỗi 5 giây;
-dòng Updated thay đổi không có nghĩa một rule vừa apply. `Observed outcomes` là
-quan sát của proxy, không chứng minh upstream đã rollback/commit. `Rule counters`
-là eligible/selected của revision active.
+The `Injection ON/OFF` badge is server-confirmed state. Status polls every five
+seconds; the Updated timestamp does not mean a rule was just applied. `Observed
+outcomes` are proxy observations, not proof that an upstream committed or rolled
+back work. `Rule counters` are eligible and selected counts for the active revision.
