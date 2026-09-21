@@ -4,6 +4,11 @@ Completed work following DEFINE → PLAN → BUILD → VERIFY → REVIEW.
 
 ## 2026-09-21
 
+- Reworked the root README for GitHub visitors: added CI status, a supported-scope
+  table, clone/build quick start and public Go commands; removed workspace-only
+  `rtk` invocations and phase-diary presentation. Reviewed Markdown links and
+  whitespace; documentation-only change.
+
 - Prepared the repository for public release: set the Go module to
   `github.com/plhhao/faultline`, migrated internal imports, added the standard
   Apache-2.0 license, contribution/security policy, GitHub CI, Dependabot and

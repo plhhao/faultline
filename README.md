@@ -1,5 +1,7 @@
 # Faultline
 
+[![CI](https://github.com/plhhao/faultline/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/plhhao/faultline/actions/workflows/ci.yml)
+
 Faultline is a Go proxy for testing how applications handle network failures.
 It sits between an application and its dependency, injects configurable faults,
 and records what happened.
@@ -12,43 +14,42 @@ general-purpose TCP/database proxy. gRPC streaming is outside the verified
 scope; PostgreSQL and MySQL support is limited to the documented explicit
 transaction COMMIT flows.
 
+## Supported scope
+
+| Area | Supported behavior |
+| --- | --- |
+| HTTP | HTTP/1.1 and HTTP/2; optional TLS/mTLS; delay, response, connection-close, hold, truncate, and throttle faults. |
+| gRPC | Unary gRPC over HTTP/2; service, method, and metadata matching; optional TLS/mTLS. Streaming is out of scope. |
+| PostgreSQL | Confirmed explicit-transaction COMMIT acknowledgement faults: delay, bounded hold, and disconnect. |
+| MySQL | Confirmed explicit-transaction COMMIT acknowledgement faults for MySQL 8.4.8: delay, bounded hold, and disconnect. |
+| Control and evidence | File configuration, local admin socket, managed HTTPS tester UI, NDJSON event records, and bounded counters. |
+
 Start with the Vietnamese [user documentation](docs/README.md): quick start,
 configuration, CLI operations, tester UI, and PostgreSQL/MySQL adapters.
 
-**Status:** the HTTP/HTTPS MVP (phases 1–5) is complete: five fault actions, local
-administration, JSON events, payment demo and binary/Docker delivery. See
-[AC1–AC24 evidence](plans/05-mvp-delivery/acceptance.md),
-[resource measurements](plans/05-mvp-delivery/benchmark-results.md) and the
-[runnable lost-response demo](examples/http/paymentdemo/README.md).
+See the [MVP acceptance evidence](plans/05-mvp-delivery/acceptance.md),
+[resource measurements](plans/05-mvp-delivery/benchmark-results.md),
+[gRPC examples and protocol contract](examples/grpc/README.md), and the
+[PostgreSQL](examples/postgresql/README.md) and [MySQL](examples/mysql/README.md)
+retry demonstrations. Browser acceptance has been reported passing for the
+PostgreSQL-specific UI checklist; mixed-protocol browser acceptance remains
+pending.
 
-**Phase 6 is complete:** HTTP/2, unary gRPC, optional mTLS, and request/response
-truncate and throttle. See the [examples and protocol contract](examples/grpc/README.md)
-and [15 acceptance criteria with verification results](plans/06-protocol-extensions/acceptance.md).
+## Build from source
 
-**Phase 7 is complete:** managed HTTPS API and embedded tester UI are
-implemented. Browser interaction acceptance was reported passing by the tester.
-See the [tester setup and checklist](examples/tester/README.md) and
-[verification record](plans/07-tester-experience/acceptance.md).
+Faultline requires Go 1.26.4.
 
-**Phase 9:** PostgreSQL explicit-transaction faults are implemented with SCRAM-SHA-256
-and per-leg TLS. Delay, bounded hold and disconnect can intercept confirmed COMMIT
-acknowledgments. See the [runnable PostgreSQL demo and UI checklist](examples/postgresql/README.md)
-and [verification record](plans/09-semantic-adapters/acceptance.md). The
-PostgreSQL-specific UI checklist was reported passing; mixed-protocol browser
-acceptance remains pending.
-
-**MySQL (P25):** explicit-transaction COMMIT faults are implemented for MySQL8.4.8,
-with caching_sha2_password and plaintext/plaintext or TLS/TLS connections.
-See the [MySQL setup and retry demo](examples/mysql/README.md),
-[protocol limits](plans/09-semantic-adapters/mysql-contract.md) and
-[automated acceptance](plans/09-semantic-adapters/mysql-acceptance.md).
+```sh
+git clone https://github.com/plhhao/faultline.git
+cd faultline
+go build -o bin/faultline ./cmd/faultline
+```
 
 ## Run locally
 
 ```sh
-rtk proxy go build -o bin/faultline ./cmd/faultline
-rtk proxy ./bin/faultline validate --config examples/http/faultline.yaml
-rtk proxy ./bin/faultline serve --config examples/http/faultline.yaml
+./bin/faultline validate --config examples/http/faultline.yaml
+./bin/faultline serve --config examples/http/faultline.yaml
 ```
 
 Run your upstream at `127.0.0.1:9000`, then send requests to `127.0.0.1:8080`.
@@ -62,10 +63,10 @@ consume selector counters. `serve --start-enabled` enables configured fault
 actions immediately. Otherwise, enable injection after the application is ready:
 
 ```sh
-rtk proxy ./bin/faultline status
-rtk proxy ./bin/faultline enable
-rtk proxy ./bin/faultline reload --config examples/http/faultline.yaml
-rtk proxy ./bin/faultline disable
+./bin/faultline status
+./bin/faultline enable
+./bin/faultline reload --config examples/http/faultline.yaml
+./bin/faultline disable
 ```
 
 ## Runtime administration
@@ -276,17 +277,14 @@ and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
 ## Development checks
 
 ```sh
-rtk proxy go build ./...
-rtk proxy go test ./...
-rtk proxy go test -race ./...
-rtk proxy go vet ./...
+go build ./...
+go test ./...
+go test -race ./...
+go vet ./...
 ```
 
 These checks cover core packages, CLI behavior, fault execution and real HTTP/TLS
 integration and the payment demo. See [MVP acceptance](plans/05-mvp-delivery/acceptance.md).
-If the workspace sandbox blocks
-the default Go build cache, prefix the Go invocation with
-`env GOCACHE=/private/tmp/faultline-go-build` after `rtk proxy`.
 Integration tests require permission to bind localhost TCP ports.
 
 The optional container smoke test needs a running Docker daemon. It builds a
@@ -294,7 +292,7 @@ temporary image from the delivery Dockerfile and checks mounted root/includes/TL
 files, admin commands and the payment demo, then removes its own containers/image:
 
 ```sh
-rtk proxy env FAULTLINE_DOCKER_TEST=1 go test ./tests/integration -run '^TestContainerRuntime$' -timeout 360s
+FAULTLINE_DOCKER_TEST=1 go test ./tests/integration -run '^TestContainerRuntime$' -timeout 360s
 ```
 
 See [configuration defaults and example](examples/http/README.md) and
