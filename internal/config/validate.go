@@ -31,8 +31,8 @@ func validate(c *Config, base string) (map[string][32]byte, error) {
 		if !identifier(p.ID) {
 			return nil, invalid(path+".id", "expected a nonempty identifier")
 		}
-		if p.Protocol != "http1" && p.Protocol != "http2" && p.Protocol != "grpc" {
-			return nil, invalid(path+".protocol", "expected http1, http2 or grpc")
+		if p.Protocol != "http1" && p.Protocol != "http2" && p.Protocol != "grpc" && p.Protocol != "postgresql" && p.Protocol != "mysql" {
+			return nil, invalid(path+".protocol", "expected http1, http2, grpc, postgresql or mysql")
 		}
 		if p.UpstreamProtocol == "" {
 			p.UpstreamProtocol = p.Protocol
@@ -40,7 +40,10 @@ func validate(c *Config, base string) (map[string][32]byte, error) {
 				p.UpstreamProtocol = "http2"
 			}
 		}
-		if p.UpstreamProtocol != "http1" && p.UpstreamProtocol != "http2" || p.Protocol == "grpc" && p.UpstreamProtocol != "http2" {
+		if (p.Protocol == "postgresql" || p.Protocol == "mysql") && p.UpstreamProtocol != p.Protocol {
+			return nil, invalid(path+".upstream_protocol", "database upstream protocol must match listener")
+		}
+		if p.Protocol != "postgresql" && p.Protocol != "mysql" && (p.UpstreamProtocol != "http1" && p.UpstreamProtocol != "http2" || p.Protocol == "grpc" && p.UpstreamProtocol != "http2") {
 			return nil, invalid(path+".upstream_protocol", "expected http1 or http2; grpc requires http2")
 		}
 		host, port, err := net.SplitHostPort(p.Listen)
@@ -57,10 +60,20 @@ func validate(c *Config, base string) (map[string][32]byte, error) {
 		}
 		listeners[p.Listen] = true
 		u, err := url.Parse(p.Upstream)
-		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || !hostname(u.Hostname()) || u.Opaque != "" || (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.ForceQuery || strings.Contains(p.Upstream, "#") {
-			return nil, invalid(path+".upstream", "expected an HTTP(S) origin without credentials, path, query or fragment")
+		if err != nil || !validUpstreamScheme(p.Protocol, u.Scheme) || u.User != nil || !hostname(u.Hostname()) || u.Opaque != "" || (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.ForceQuery || strings.Contains(p.Upstream, "#") {
+			scheme := "HTTP(S)"
+			if p.Protocol == "postgresql" || p.Protocol == "mysql" {
+				scheme = p.Protocol + "(s)"
+			}
+			return nil, invalid(path+".upstream", "expected a "+scheme+" origin without credentials, path, query or fragment")
 		}
 		port = u.Port()
+		if (p.Protocol == "postgresql" || p.Protocol == "mysql") && port == "" && !strings.HasSuffix(u.Host, ":") {
+			port = "5432"
+			if p.Protocol == "mysql" {
+				port = "3306"
+			}
+		}
 		if port != "" {
 			n, err := strconv.Atoi(port)
 			if err != nil || n < 1 || n > 65535 {
@@ -100,6 +113,12 @@ func validate(c *Config, base string) (map[string][32]byte, error) {
 			}
 			if !slices.Contains(Actions(p.Protocol), r.Fault.Action) {
 				return nil, invalid(rp+".fault.action", "unsupported capability for protocol")
+			}
+			if p.Protocol == "postgresql" || p.Protocol == "mysql" {
+				if err := validateCommitRule(r, rp); err != nil {
+					return nil, err
+				}
+				continue
 			}
 			if err := validateRule(r, rp); err != nil {
 				return nil, err
@@ -305,4 +324,29 @@ func validPathPattern(pattern string) bool {
 		names[name] = true
 	}
 	return true
+}
+
+func validUpstreamScheme(protocol, scheme string) bool {
+	if protocol == "postgresql" || protocol == "mysql" {
+		return scheme == protocol || scheme == protocol+"s"
+	}
+	return scheme == "http" || scheme == "https"
+}
+
+func validateCommitRule(r *Rule, path string) error {
+	m := r.Match
+	if m.Method != "" || m.Path != "" || m.PathPattern != "" || m.Service != "" || len(m.Headers) != 0 {
+		return invalid(path+".match", "database protocol requires an empty matcher")
+	}
+	if r.Fault.Phase != AfterCommit {
+		return invalid(path+".fault.phase", "database protocol requires after_commit")
+	}
+	// Reuse selector and action parameter validation without exposing HTTP phases.
+	copy := *r
+	copy.Fault.Phase = AfterUpstreamHeaders
+	if err := validateRule(&copy, path); err != nil {
+		return err
+	}
+	r.Match.Headers = copy.Match.Headers
+	return nil
 }

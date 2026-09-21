@@ -36,6 +36,7 @@ type Event struct {
 	Action           string    `json:"action,omitempty"`
 	Outcome          string    `json:"outcome,omitempty"`
 	ErrorKind        string    `json:"error_kind,omitempty"`
+	CommitConfirmed  bool      `json:"commit_confirmed,omitempty"`
 	GRPCStatus       string    `json:"grpc_status,omitempty"`
 	UpstreamStatus   int       `json:"upstream_status,omitempty"`
 	Operation        string    `json:"operation,omitempty"`

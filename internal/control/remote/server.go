@@ -417,5 +417,5 @@ func (s *Server) status() admin.Status {
 }
 
 func capabilities() any {
-	return map[string]any{"actions": map[string][]string{"http1": config.Actions("http1"), "http2": config.Actions("http2"), "grpc": config.Actions("grpc")}, "phases": []string{config.BeforeUpstreamRequest, config.AfterUpstreamHeaders}, "selectors": []string{"Probability", "Nth", "Every"}}
+	return map[string]any{"actions": map[string][]string{"http1": config.Actions("http1"), "http2": config.Actions("http2"), "grpc": config.Actions("grpc"), "postgresql": config.Actions("postgresql"), "mysql": config.Actions("mysql")}, "phases": []string{config.BeforeUpstreamRequest, config.AfterUpstreamHeaders}, "protocol_phases": map[string][]string{"postgresql": {config.AfterCommit}, "mysql": {config.AfterCommit}}, "selectors": []string{"Probability", "Nth", "Every"}}
 }

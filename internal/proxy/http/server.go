@@ -62,6 +62,9 @@ func Start(service *control.Service, options Options) (*Server, error) {
 		diagnostics = io.Discard
 	}
 	for _, p := range c.Proxies {
+		if p.Protocol == "postgresql" || p.Protocol == "mysql" {
+			continue
+		}
 		transport, listenerTLS, err := transportFor(p)
 		if err != nil {
 			return nil, fmt.Errorf("proxy %s: %w", p.ID, err)

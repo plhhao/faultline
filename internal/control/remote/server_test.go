@@ -34,6 +34,11 @@ proxies:
 
 func setup(t *testing.T) *Server {
 	t.Helper()
+	return setupConfig(t, fixture)
+}
+
+func setupConfig(t *testing.T, fixture string) *Server {
+	t.Helper()
 	dir := t.TempDir()
 	if err := os.Chmod(dir, 0700); err != nil {
 		t.Fatal(err)

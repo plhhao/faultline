@@ -18,6 +18,8 @@ import (
 	"faultline/internal/control/remote"
 	"faultline/internal/fault"
 	httpproxy "faultline/internal/proxy/http"
+	"faultline/internal/proxy/mysql"
+	"faultline/internal/proxy/postgresql"
 	"faultline/internal/recorder"
 )
 
@@ -151,7 +153,20 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	defer server.Close()
-	management, err := admin.Start(socket, service, records, server.Listeners, managed != nil)
+	pgServer, err := postgresql.Start(service, records)
+	if err != nil {
+		return err
+	}
+	defer pgServer.Close()
+	myServer, err := mysql.Start(service, records)
+	if err != nil {
+		return err
+	}
+	defer myServer.Close()
+	listeners := func() []control.ListenerStatus {
+		return append(append(server.Listeners(), pgServer.Listeners()...), myServer.Listeners()...)
+	}
+	management, err := admin.Start(socket, service, records, listeners, managed != nil)
 	if err != nil {
 		return err
 	}
@@ -159,13 +174,15 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		management.Close()
 		drain, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+		myServer.Close()
+		pgServer.Close()
 		server.Shutdown(drain)
 		counts := records.Counters()
 		records.Record(recorder.Event{Info: service.Acquire().Info(), Type: "control", Operation: "shutdown", Outcome: "stopped", Counters: &counts})
 	}()
 	var apiErrors <-chan error
 	if managed != nil {
-		if err := managed.Start(remote.Options{Address: apiAddress, Certificate: apiCert, Key: apiKey}, records, server.Listeners); err != nil {
+		if err := managed.Start(remote.Options{Address: apiAddress, Certificate: apiCert, Key: apiKey}, records, listeners); err != nil {
 			return err
 		}
 		defer managed.Close()
@@ -177,6 +194,10 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	select {
 	case <-ctx.Done():
 		return nil
+	case err := <-myServer.Errors():
+		return err
+	case err := <-pgServer.Errors():
+		return err
 	case err := <-server.Errors():
 		return err
 	case err := <-apiErrors:

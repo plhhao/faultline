@@ -2,7 +2,45 @@
 
 Completed work following DEFINE → PLAN → BUILD → VERIFY → REVIEW.
 
+## 2026-09-20
+
+- Added `docs/deployment.md` for Linux/systemd deployment: file and managed UI
+  modes, service-account permissions, Unix socket operations, HTTPS/network
+  boundaries, journald retention, managed-state backup and Docker handoff.
+  Linked it from `docs/README.md`; documentation links and whitespace checked.
+
+## 2026-09-19
+
+- Added `docs/cli-reference.md`, a Vietnamese reference for every Faultline CLI
+  command and flag, including defaults, required values, managed-mode constraints
+  and operational effects. Linked it from `docs/README.md`; command help output,
+  local links and Markdown whitespace were checked.
+
+## 2026-09-18
+
+- Documented managed UI account creation, role updates and deletion in
+  `docs/operations.md`, including password piping that avoids shell history.
+  Reviewed command syntax and documentation whitespace; no runtime checks apply.
+
+## 2026-09-17
+
+- Added Vietnamese user documentation in `docs/`: navigation, HTTP quick start,
+  configuration/rules, CLI operations, tester UI and PostgreSQL/MySQL commit
+  testing. Linked it from the root README; internal links and whitespace checked.
+
+- Completed P25 MySQL 8.4.8 adapter (`internal/proxy/mysql`) with caching_sha2_password, confirmed explicit-COMMIT delay/hold/disconnect, bounded sessions/packets/prepared statements, config/CLI/API/UI integration and Go retry fixture (`examples/mysql`). Full Go race regression including real MySQL/PostgreSQL, vet, binary/Docker builds, MySQL Docker runtime 2/1-row evidence, 12 Node checks and example/link/whitespace checks passed; additional auth/wire unit tests passed with race detection. Contract and acceptance record TLS/TLS or plaintext/plaintext only, conservative transaction tracking after errors, and protocol limits; reused UI verified automatically without new manual browser tests.
+
+- Planned P25 MySQL 8.4 LTS semantic adapter with a Go fixture, explicit confirmed-COMMIT faults, auth/TLS contract gate, lifecycle bounds and nine acceptance criteria. Updated Phase 9 index, roadmap and specification; local plan links and whitespace checked. Planning only; MySQL implementation and runtime verification have not started.
+
+- Fixed stale proxy choices after re-login in the admin UI: untouched drafts reload from active config; edited drafts remain available with an explanation and require validation again. Added login regression tests for removed/added proxies and preserved edits; all 10 Node editor/diff tests and whitespace checks passed. Browser retest pending.
+
+- Recorded user-reported PostgreSQL UI PG1–PG6 PASS and added `examples/postgresql/ui.yaml` plus mixed-protocol UI instructions. HTTP/gRPC use ports 18080/18081; prepared a local replacement from managed revision 4 preserving PostgreSQL rules. Both configs passed CLI validation and whitespace checks; mixed-protocol browser testing remains pending.
+
+- Completed the P23 PostgreSQL contract and implemented the adapter, config/CLI/API/UI integration and Go retry fixture (`internal/proxy/postgresql`, `examples/postgresql`). Added confirmed-COMMIT delay/hold/disconnect, SCRAM/TLS, bounded lifecycle and cancellation; unit/integration tests, real PostgreSQL Docker fixture, binary retry demo, full Go/race regression, vet, binary/Docker builds and 8 Node checks passed. P24/Phase 9 remains In progress pending user manual UI acceptance; versions and limits are recorded in `plans/09-semantic-adapters/acceptance.md`.
+
 ## 2026-09-16
+
+- Planned Phase 9 PostgreSQL ahead of deferred Phase 8: separated delay/hold/disconnect from protocol phases, including successful COMMIT acknowledgment interception; defined P23 contract work and P24 acceptance, Go/Docker fixture, SCRAM/TLS scope and exclusions. Synchronized roadmap/specification; local link targets and whitespace checks passed. Documentation only; adapter remains unimplemented.
 
 - Added a shared teal F/fault-line SVG favicon and 36px header logo before FAULTLINE in the embedded admin UI. Extended public asset serving and its existing test; targeted remote asset/session test and whitespace checks passed. Browser visual confirmation remains pending for this addition.
 

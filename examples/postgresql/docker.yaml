@@ -1,0 +1,14 @@
+api_version: faultline/v1alpha1
+runtime:
+  max_inflight_requests: 100
+  request_timeout: 30s
+proxies:
+  - id: database
+    protocol: postgresql
+    listen: 0.0.0.0:15432
+    upstream: postgresql://faultline-pg-demo:5432
+    rules:
+      - id: lost-commit-ack
+        match: {}
+        select: {probability: 1}
+        fault: {phase: after_commit, action: close_connection}

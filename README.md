@@ -7,6 +7,9 @@ and records what happened.
 Faultline supports HTTP/1.1, HTTP/2 and unary gRPC, with optional TLS/mTLS,
 file-based configuration, runtime controls, and one fault action per flow.
 
+Start with the Vietnamese [user documentation](docs/README.md): quick start,
+configuration, CLI operations, tester UI, and PostgreSQL/MySQL adapters.
+
 **Status:** the HTTP/HTTPS MVP (phases 1–5) is complete: five fault actions, local
 administration, JSON events, payment demo and binary/Docker delivery. See
 [AC1–AC24 evidence](plans/05-mvp-delivery/acceptance.md),
@@ -21,6 +24,17 @@ and [15 acceptance criteria with verification results](plans/06-protocol-extensi
 interaction acceptance is pending user testing. See the [tester setup and checklist](examples/tester/README.md)
 and [verification record](plans/07-tester-experience/acceptance.md).
 
+**Phase 9:** PostgreSQL explicit-transaction faults are implemented with SCRAM-SHA-256
+and per-leg TLS. Delay, bounded hold and disconnect can intercept confirmed COMMIT
+acknowledgments. See the [runnable PostgreSQL demo and UI checklist](examples/postgresql/README.md)
+and [verification record](plans/09-semantic-adapters/acceptance.md). Manual UI acceptance is pending.
+
+**MySQL (P25):** explicit-transaction COMMIT faults are implemented for MySQL8.4.8,
+with caching_sha2_password and plaintext/plaintext or TLS/TLS connections.
+See the [MySQL setup and retry demo](examples/mysql/README.md),
+[protocol limits](plans/09-semantic-adapters/mysql-contract.md) and
+[automated acceptance](plans/09-semantic-adapters/mysql-acceptance.md).
+
 ## Run locally
 
 ```sh
@@ -33,7 +47,7 @@ Run your upstream at `127.0.0.1:9000`, then send requests to `127.0.0.1:8080`.
 The multi-file example also works with both commands. All files and listeners
 are prepared before serving; listener readiness does not establish app or
 upstream readiness. Ctrl+C/SIGTERM stops admission, drains requests for up to 5s,
-then cancels remaining flows.
+then cancels remaining HTTP flows. PostgreSQL/MySQL sessions close immediately on shutdown.
 
 Injection starts disabled, so configured rules do not affect startup traffic or
 consume selector counters. `serve --start-enabled` enables configured fault

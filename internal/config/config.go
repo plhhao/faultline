@@ -10,6 +10,7 @@ import (
 
 const APIVersion = "faultline/v1alpha1"
 const (
+	AfterCommit           = "after_commit"
 	BeforeUpstreamRequest = "before_upstream_request"
 	AfterUpstreamHeaders  = "after_upstream_headers"
 )

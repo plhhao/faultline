@@ -1,10 +1,10 @@
 # Kế hoạch hiện thực Faultline
 
-Nguồn yêu cầu: [specific.md](../specific.md). **Phase 01–05 đã Done**: core, [cấu hình nhiều file](01-core/04-multi-file-config.md), HTTP/HTTPS forwarding, năm fault action, admin/recorder, giới hạn tài nguyên, payment demo và binary/Docker. [AC1–AC24 đã có bằng chứng](05-mvp-delivery/acceptance.md) trên macOS arm64 và Docker/OrbStack Linux arm64. **Phase 06 đã Done**: HTTP/2, gRPC unary, mTLS tùy chọn và truncate/throttle hai chiều; xem [15 AC và kết quả kiểm chứng](06-protocol-extensions/acceptance.md). Phase 07 Done: P19/P20/P20a hoàn tất, người dùng xác nhận mọi case hướng dẫn tester PASS ngày 2026-09-16; phase 08–09 vẫn Deferred.
+Nguồn yêu cầu: [specific.md](../specific.md). **Phase 01–05 đã Done**: core, [cấu hình nhiều file](01-core/04-multi-file-config.md), HTTP/HTTPS forwarding, năm fault action, admin/recorder, giới hạn tài nguyên, payment demo và binary/Docker. [AC1–AC24 đã có bằng chứng](05-mvp-delivery/acceptance.md) trên macOS arm64 và Docker/OrbStack Linux arm64. **Phase 06 đã Done**: HTTP/2, gRPC unary, mTLS tùy chọn và truncate/throttle hai chiều; xem [15 AC và kết quả kiểm chứng](06-protocol-extensions/acceptance.md). Phase 07 Done: P19/P20/P20a hoàn tất, người dùng xác nhận mọi case hướng dẫn tester PASS ngày 2026-09-16; phase 08 Deferred; phase 09 In progress (chờ manual UI), ưu tiên PostgreSQL trước phase 08.
 
 ## Các phase
 
-Phase 01–05 chia nhỏ giai đoạn A trong mục 13 của đặc tả. Phase 06–09 tương ứng B–E; phase 06 Done, phase 07 Done, phase 08–09 Deferred. Thứ tự sau MVP có thể đổi theo nhu cầu; UI không phải đợi hỗ trợ thêm protocol.
+Phase 01–05 chia nhỏ giai đoạn A trong mục 13 của đặc tả. Phase 06–09 tương ứng B–E; phase 06 Done, phase 07 Done, phase 08 Deferred, phase 09 In progress (chờ manual UI). Thứ tự sau MVP có thể đổi theo nhu cầu; UI không phải đợi hỗ trợ thêm protocol.
 
 | Phase | Phạm vi | Kết quả | Số plan |
 | --- | --- | --- | --- |
@@ -16,14 +16,15 @@ Phase 01–05 chia nhỏ giai đoạn A trong mục 13 của đặc tả. Phase 
 | [06 — Mở rộng protocol và fault](06-protocol-extensions/README.md) | Sau MVP | gRPC unary, HTTP/2 hai phía, mTLS tùy chọn và truncate/throttle cho request/response. | 3 |
 | [07 — API và UI cho tester](07-tester-experience/README.md) | Sau MVP | Tester quản lý cấu hình trên server test chung qua cùng control service, bổ sung path pattern. | 3 |
 | [08 — Scenario và đánh giá kết quả](08-failure-testing/README.md) | Sau MVP | Điều phối kịch bản, correlation có bằng chứng và kết quả PASS/FAIL/inconclusive. | 2 |
-| [09 — Adapter theo công nghệ](09-semantic-adapters/README.md) | Sau MVP | Một adapter database/broker có semantics và integration tests được xác định rõ. | 2 |
+| [09 — Adapter theo công nghệ](09-semantic-adapters/README.md) | Sau MVP | PostgreSQL và MySQL: delay/hold/ngắt kết nối sau xác nhận COMMIT thành công; MySQL Done. | 3 |
 
 ## Thứ tự và ranh giới
 
 - MVP: phase 01 → 02 → 03 → 04 → 05. Theo cột phụ thuộc của từng plan; có thể làm các plan độc lập sau khi đủ đầu vào.
 - Hoàn tất P01a trước P04; MC1–MC4 được kiểm chứng ở P01a/P11, MC5 ở P04/P11/P15. Các tiêu chí bổ sung không thay thế AC1–AC24.
 - Sau MVP: phase 06, 07, 08 và bước thiết kế phase 09 đều có thể bắt đầu từ P15 theo ưu tiên thực tế. Phase 06 triển khai P17 (HTTP/2 và mTLS) → P16 (gRPC unary) → P18 (truncate rồi throttle); adapter công nghệ có thể bổ sung phụ thuộc sau khi chọn protocol.
-- P01–P15 và P01a là kế hoạch cụ thể cho MVP; P16–P18 đã Done trong phase 06; P19 đã hiện thực API, config lưu bền và đăng nhập độc lập; P20 đã nghiệm thu UI nhúng theo [hướng dẫn tester](../examples/tester/README.md); [P20a](07-tester-experience/03-path-pattern.md) đã Done path pattern và nghiệm thu UI; P21–P24 vẫn là khung mở rộng cần DEFINE lại khi được chọn, không phải cam kết làm mọi capability.
+- P01–P15 và P01a là kế hoạch cụ thể cho MVP; P16–P18 đã Done trong phase 06; P19 đã hiện thực API, config lưu bền và đăng nhập độc lập; P20 đã nghiệm thu UI nhúng theo [hướng dẫn tester](../examples/tester/README.md); [P20a](07-tester-experience/03-path-pattern.md) đã Done path pattern và nghiệm thu UI; P21–P22 tiếp tục Deferred; P23 Done; P24 đã hiện thực PostgreSQL và kiểm thử tự động, còn chờ manual UI; xem [acceptance](09-semantic-adapters/acceptance.md).
+- [P25](09-semantic-adapters/03-mysql-adapter.md) Done: MySQL 8.4.8 + fixture Go, after_commit, automated CLI/API/UI và Docker runtime đã kiểm chứng; không phụ thuộc Phase 8.
 - Tận dụng cấu trúc package hiện tại. Chỉ thêm package/interface khi implementation cần; ưu tiên helper có trách nhiệm rõ, không tạo sẵn common/utils hoặc framework plugin.
 - Schema, CLI transport và defaults còn là đề xuất trong đặc tả: chốt ở plan sở hữu, ghi quyết định và cập nhật tài liệu liên quan nếu thay đổi hợp đồng.
 

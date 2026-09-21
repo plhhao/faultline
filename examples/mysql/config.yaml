@@ -1,0 +1,15 @@
+api_version: faultline/v1alpha1
+runtime:
+  request_timeout: 30s
+  max_inflight_requests: 100
+proxies:
+  - id: mysql
+    protocol: mysql
+    listen: 127.0.0.1:13306
+    upstream: mysql://127.0.0.1:3306
+    rules:
+      - id: lost-commit-ack
+        enabled: true
+        match: {}
+        select: {probability: 1}
+        fault: {action: close_connection, phase: after_commit}

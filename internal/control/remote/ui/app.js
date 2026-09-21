@@ -1,6 +1,7 @@
 "use strict";
 const $ = id => document.getElementById(id);
 let session, active, draft, caps, selected = 0, reviewed = "", busy = false;
+let draftChanged = false;
 let togglePending = false, statusGeneration = 0, toastTimer;
 const headerDrafts = new WeakMap();
 const selectorKinds = new WeakMap();
@@ -26,7 +27,8 @@ function injectionState(enabled) {
   $("injectionBadge").dataset.state = enabled ? "on" : "off";
   $("injectionBadge").hidden = !session;
 }
-function faultPhases(f) {
+function faultPhases(f, protocol) {
+  if (caps.protocol_phases?.[protocol]) return caps.protocol_phases[protocol];
   if (f.Action === "hold_response" || ["truncate", "throttle"].includes(f.Action) && f.Direction === "response") return ["after_upstream_headers"];
   if (["respond", "hold_request", "truncate", "throttle"].includes(f.Action)) return ["before_upstream_request"];
   return caps.phases;
@@ -42,7 +44,7 @@ async function api(path, body) {
   return data;
 }
 function editor() { return session?.role === "editor"; }
-function edited() { reviewed = ""; $("validation").textContent = "Draft changed. Validate before applying."; showDiff(); }
+function edited() { draftChanged = true; reviewed = ""; $("validation").textContent = "Draft changed. Validate before applying."; showDiff(); }
 function showDiff() {
   if (!draft || !active) return;
   $("revision").textContent = `Draft base: ${draft.base_revision} · Active: ${active.revision}`;
@@ -59,8 +61,9 @@ function field(parent, label, value, change, options) {
   input.addEventListener(options ? "change" : "input", () => { change(input.value); edited(); });
   return input;
 }
-function defaultFault(action) {
+function defaultFault(action, protocol) {
   const f = {Action:action, Phase: action === "hold_response" ? "after_upstream_headers" : "before_upstream_request"};
+  if (["postgresql", "mysql"].includes(protocol)) f.Phase = "after_commit";
   if (action === "delay") f.Duration = 100000000;
   if (action.startsWith("hold_")) f.MaxDuration = 5000000000;
   if (action === "respond") { f.Status = 503; f.Body = "Injected fault"; }
@@ -89,24 +92,26 @@ function renderRules() {
     const selector = selectorKinds.get(r) || ["Probability", "Nth", "Every"].find(k => r.Select[k] != null) || "Probability";
     selectorKinds.set(r, selector);
     field(grid, "Selector", selector, v => { selectorKinds.set(r,v); r.Select = {[v]: 1}; renderRules(); }, caps.selectors);
-    const number = field(grid, selector === "Probability" ? "Probability (0–1; 1 = 100%)" : `${selector} eligible request`, r.Select[selector], v => r.Select[selector] = v === "" ? null : Number(v)); number.type = "number"; number.step = selector === "Probability" ? "any" : "1";
-    field(grid, info.protocol === "grpc" ? "RPC method (blank = any)" : "HTTP method (blank = any)", r.Match.Method, v => r.Match.Method = v);
-    element("p", "Method filters which requests receive faults. A blank method matches all methods; forwarding preserves the original method.", box);
-    const pathKind = pathKinds.get(r) || (r.Match.PathPattern ? "Pattern" : r.Match.Path ? "Exact" : "Any");
-    pathKinds.set(r, pathKind);
-    field(grid, "Path match", pathKind, v => { pathKinds.set(r, v); r.Match.Path = ""; r.Match.PathPattern = ""; renderRules(); }, ["Any", "Exact", "Pattern"]);
-    if (pathKind !== "Any") {
-      const key = pathKind === "Pattern" ? "PathPattern" : "Path";
-      const input = field(grid, pathKind === "Pattern" ? "Path pattern (e.g. /payment/:id)" : "Exact path", r.Match[key], v => r.Match[key] = v);
-      input.required = true;
-    }
-    if (pathKind === "Pattern") element("p", ":name matches one nonempty segment, including history. Rules run in order; put exact exceptions first. No wildcards.", box);
-    if (info.protocol === "grpc") field(grid, "gRPC service (optional)", r.Match.Service, v => r.Match.Service = v);
-    const headerLabel = element("label", "Headers / metadata (JSON object)", box);
-    const headerInput = element("textarea", undefined, headerLabel); headerInput.value = headerDrafts.get(r) ?? pretty(r.Match.Headers || {}); headerInput.disabled = !editor();
-    headerInput.oninput = () => { headerDrafts.set(r, headerInput.value); try { const h = JSON.parse(headerInput.value); if (!h || Array.isArray(h) || typeof h !== "object" || Object.values(h).some(v => typeof v !== "string")) throw Error(); r.Match.Headers = h; headerInput.setCustomValidity(""); } catch { headerInput.setCustomValidity("Use a JSON object with string values"); } edited(); };
-    field(grid, "Fault action", r.Fault.Action, v => { r.Fault = defaultFault(v); renderRules(); }, caps.actions[info.protocol]);
-    const phases = faultPhases(r.Fault);
+    const number = field(grid, selector === "Probability" ? "Probability (0–1; 1 = 100%)" : `${selector} eligible ${["postgresql", "mysql"].includes(info.protocol) ? "commit" : "request"}`, r.Select[selector], v => r.Select[selector] = v === "" ? null : Number(v)); number.type = "number"; number.step = selector === "Probability" ? "any" : "1";
+    if (!["postgresql", "mysql"].includes(info.protocol)) {
+      field(grid, info.protocol === "grpc" ? "RPC method (blank = any)" : "HTTP method (blank = any)", r.Match.Method, v => r.Match.Method = v);
+      element("p", "Method filters which requests receive faults. A blank method matches all methods; forwarding preserves the original method.", box);
+      const pathKind = pathKinds.get(r) || (r.Match.PathPattern ? "Pattern" : r.Match.Path ? "Exact" : "Any");
+      pathKinds.set(r, pathKind);
+      field(grid, "Path match", pathKind, v => { pathKinds.set(r, v); r.Match.Path = ""; r.Match.PathPattern = ""; renderRules(); }, ["Any", "Exact", "Pattern"]);
+      if (pathKind !== "Any") {
+        const key = pathKind === "Pattern" ? "PathPattern" : "Path";
+        const input = field(grid, pathKind === "Pattern" ? "Path pattern (e.g. /payment/:id)" : "Exact path", r.Match[key], v => r.Match[key] = v);
+        input.required = true;
+      }
+      if (pathKind === "Pattern") element("p", ":name matches one nonempty segment, including history. Rules run in order; put exact exceptions first. No wildcards.", box);
+      if (info.protocol === "grpc") field(grid, "gRPC service (optional)", r.Match.Service, v => r.Match.Service = v);
+      const headerLabel = element("label", "Headers / metadata (JSON object)", box);
+      const headerInput = element("textarea", undefined, headerLabel); headerInput.value = headerDrafts.get(r) ?? pretty(r.Match.Headers || {}); headerInput.disabled = !editor();
+      headerInput.oninput = () => { headerDrafts.set(r, headerInput.value); try { const h = JSON.parse(headerInput.value); if (!h || Array.isArray(h) || typeof h !== "object" || Object.values(h).some(v => typeof v !== "string")) throw Error(); r.Match.Headers = h; headerInput.setCustomValidity(""); } catch { headerInput.setCustomValidity("Use a JSON object with string values"); } edited(); };
+    } else element("p", "Matches confirmed commits of explicit transactions. Selectors count eligible commit cycles; faults can hide the acknowledgment even though data was committed.", box);
+    field(grid, "Fault action", r.Fault.Action, v => { r.Fault = defaultFault(v, info.protocol); renderRules(); }, caps.actions[info.protocol]);
+    const phases = faultPhases(r.Fault, info.protocol);
     const phase = field(grid, "Phase", r.Fault.Phase, v => r.Fault.Phase = v, phases);
     phase.disabled = !editor() || phases.length === 1;
     if (phases.length === 1) phase.title = "Determined by fault action and direction";
@@ -127,12 +132,12 @@ function render() {
   renderRules(); showDiff();
 }
 async function loadActive() { active = await api("config"); }
-function resetDraft() { draft={base_revision:active.revision,proxies:active.proxies.map(p=>({id:p.id,rules:clone(p.rules)}))}; reviewed=""; render(); }
+function resetDraft() { draftChanged=false; draft={base_revision:active.revision,proxies:active.proxies.map(p=>({id:p.id,rules:clone(p.rules)}))}; reviewed=""; render(); }
 async function signedIn() {
   $("loginPanel").hidden=true; $("workspace").hidden=false; $("logout").hidden=false;
   $("identity").textContent=`${session.name} · ${session.role}`;
   $("injectionBadge").hidden=false;
-  caps=await api("capabilities"); await loadActive(); if (!draft) resetDraft(); else render(); await status();
+  caps=await api("capabilities"); await loadActive(); if (!draft || !draftChanged) resetDraft(); else { reviewed=""; render(); message("Your unsaved draft was preserved. Compare with active; discard the draft to load the current proxy list."); } await status();
 }
 async function status() {
   if (!session || togglePending) return;
@@ -157,7 +162,7 @@ $("toastClose").onclick=()=>{clearTimeout(toastTimer);$("toast").hidden=true;};
 $("login").onsubmit=async event=>{event.preventDefault(); try { const fields=new FormData(event.target); session=await api("login",{name:fields.get("name"),password:fields.get("password")}); event.target.reset(); message(); await signedIn(); } catch(error) { message(error.message); }};
 $("logout").onclick=act(async()=>{await api("logout",{}); session=undefined; $("injectionBadge").hidden=true; draft=undefined; $("workspace").hidden=true; $("loginPanel").hidden=false; $("logout").hidden=true; $("identity").textContent="";});
 $("proxy").onchange=()=>{selected=Number($("proxy").value);renderRules();};
-$("add").onclick=()=>{const p=draft.proxies[selected];p.rules.push({ID:`rule-${Date.now()}`,Enabled:true,Match:{Method:"",Path:"",PathPattern:"",Service:"",Headers:{}},Select:{Probability:1},Fault:defaultFault("delay")});edited();renderRules();};
+$("add").onclick=()=>{const p=draft.proxies[selected];p.rules.push({ID:`rule-${Date.now()}`,Enabled:true,Match:{Method:"",Path:"",PathPattern:"",Service:"",Headers:{}},Select:{Probability:1},Fault:defaultFault("delay", active.proxies.find(x => x.id === p.id)?.protocol)});edited();renderRules();};
 $("refresh").onclick=act(async()=>{await loadActive();reviewed="";showDiff();message("Latest active loaded for comparison. Your draft is unchanged.");});
 $("rebase").onclick=()=>{if(confirm("Keep ALL draft rules shown on the right and use the latest revision as the base? This may replace another tester's edits. Compare both panels first.")){draft.base_revision=active.revision;edited();}};
 $("discard").onclick=act(async()=>{if(confirm("Discard all edits in this tab and load the active config?")){await loadActive();resetDraft();$("validation").textContent="Draft reset to active config.";}});
