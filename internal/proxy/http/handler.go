@@ -16,12 +16,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"faultline/internal/config"
-	"faultline/internal/control"
-	"faultline/internal/engine"
-	"faultline/internal/fault"
-	grpcproxy "faultline/internal/proxy/grpc"
-	"faultline/internal/recorder"
+	"github.com/plhhao/faultline/internal/config"
+	"github.com/plhhao/faultline/internal/control"
+	"github.com/plhhao/faultline/internal/engine"
+	"github.com/plhhao/faultline/internal/fault"
+	grpcproxy "github.com/plhhao/faultline/internal/proxy/grpc"
+	"github.com/plhhao/faultline/internal/recorder"
 )
 
 type Report struct {

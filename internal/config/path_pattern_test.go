@@ -2,7 +2,7 @@ package config_test
 
 import (
 	"errors"
-	"faultline/internal/config"
+	"github.com/plhhao/faultline/internal/config"
 	"strings"
 	"testing"
 )

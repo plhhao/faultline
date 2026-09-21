@@ -5,5 +5,20 @@
 *.test
 *.prof
 
+# Local runtime data and secrets
+.env
+.env.*
+!.env.example
+*.log
+*.sock
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+faultline-data/
+state.json
+users.json
+
 # OS metadata
 .DS_Store

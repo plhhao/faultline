@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"faultline/internal/config"
-	"faultline/internal/control"
-	"faultline/internal/recorder"
+	"github.com/plhhao/faultline/internal/config"
+	"github.com/plhhao/faultline/internal/control"
+	"github.com/plhhao/faultline/internal/recorder"
 )
 
 type endpoint struct {

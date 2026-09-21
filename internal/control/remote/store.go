@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"faultline/internal/config"
-	"faultline/internal/control"
+	"github.com/plhhao/faultline/internal/config"
+	"github.com/plhhao/faultline/internal/control"
 )
 
 const auditLimit = 1000

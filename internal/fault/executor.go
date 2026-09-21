@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"faultline/internal/config"
+	"github.com/plhhao/faultline/internal/config"
 )
 
 var ErrUnavailable = errors.New("fault executor is not implemented")

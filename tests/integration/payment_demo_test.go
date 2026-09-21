@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"faultline/examples/http/paymentdemo"
-	"faultline/internal/control/admin"
-	"faultline/internal/recorder"
+	"github.com/plhhao/faultline/examples/http/paymentdemo"
+	"github.com/plhhao/faultline/internal/control/admin"
+	"github.com/plhhao/faultline/internal/recorder"
 )
 
 func paymentConfig(t *testing.T, listen, upstream string) string {

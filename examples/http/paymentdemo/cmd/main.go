@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"faultline/examples/http/paymentdemo"
+	"github.com/plhhao/faultline/examples/http/paymentdemo"
 )
 
 func main() {

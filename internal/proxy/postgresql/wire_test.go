@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"faultline/internal/config"
-	"faultline/internal/control"
-	"faultline/internal/recorder"
+	"github.com/plhhao/faultline/internal/config"
+	"github.com/plhhao/faultline/internal/control"
+	"github.com/plhhao/faultline/internal/recorder"
 )
 
 func TestFramingAndStartupBounds(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"faultline/internal/config"
+	"github.com/plhhao/faultline/internal/config"
 )
 
 func protocols(protocol string, secure bool) *http.Protocols {

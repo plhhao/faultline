@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"faultline/internal/config"
+	"github.com/plhhao/faultline/internal/config"
 )
 
 const validYAML = `api_version: faultline/v1alpha1

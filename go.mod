@@ -1,4 +1,4 @@
-module faultline
+module github.com/plhhao/faultline
 
 go 1.26.4
 

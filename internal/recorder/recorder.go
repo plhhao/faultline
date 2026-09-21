@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"faultline/internal/control"
+	"github.com/plhhao/faultline/internal/control"
 )
 
 const DefaultBuffer = 1024

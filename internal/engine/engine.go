@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"faultline/internal/config"
+	"github.com/plhhao/faultline/internal/config"
 )
 
 // Metadata is supplied by an adapter; Headers retains individual values without joining them.

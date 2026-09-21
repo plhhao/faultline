@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"faultline/internal/config"
-	"faultline/internal/control"
-	"faultline/internal/proxy/postgresql"
-	"faultline/internal/recorder"
+	"github.com/plhhao/faultline/internal/config"
+	"github.com/plhhao/faultline/internal/control"
+	"github.com/plhhao/faultline/internal/proxy/postgresql"
+	"github.com/plhhao/faultline/internal/recorder"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

@@ -3,9 +3,9 @@ package mysql
 import (
 	"bytes"
 	"context"
-	"faultline/internal/config"
-	"faultline/internal/control"
-	"faultline/internal/recorder"
+	"github.com/plhhao/faultline/internal/config"
+	"github.com/plhhao/faultline/internal/control"
+	"github.com/plhhao/faultline/internal/recorder"
 	"fmt"
 	"io"
 	"net"

@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"faultline/examples/grpc/unary"
-	"faultline/internal/control"
-	"faultline/internal/control/admin"
+	"github.com/plhhao/faultline/examples/grpc/unary"
+	"github.com/plhhao/faultline/internal/control"
+	"github.com/plhhao/faultline/internal/control/admin"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/wrapperspb"

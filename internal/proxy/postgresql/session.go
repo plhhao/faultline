@@ -12,10 +12,10 @@ import (
 	"sync"
 	"time"
 
-	"faultline/internal/config"
-	"faultline/internal/control"
-	"faultline/internal/engine"
-	"faultline/internal/recorder"
+	"github.com/plhhao/faultline/internal/config"
+	"github.com/plhhao/faultline/internal/control"
+	"github.com/plhhao/faultline/internal/engine"
+	"github.com/plhhao/faultline/internal/recorder"
 )
 
 func (s *Server) serve(e *endpoint, raw net.Conn) {

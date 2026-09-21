@@ -12,7 +12,7 @@ import (
 	"os"
 	"time"
 
-	"faultline/examples/grpc/unary"
+	"github.com/plhhao/faultline/examples/grpc/unary"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

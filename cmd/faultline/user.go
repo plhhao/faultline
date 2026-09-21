@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"faultline/internal/control/remote"
+	"github.com/plhhao/faultline/internal/control/remote"
 	"flag"
 	"fmt"
 	"io"

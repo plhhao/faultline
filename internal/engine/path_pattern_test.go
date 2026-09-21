@@ -1,7 +1,7 @@
 package engine_test
 
 import (
-	"faultline/internal/engine"
+	"github.com/plhhao/faultline/internal/engine"
 	"strings"
 	"testing"
 )

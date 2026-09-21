@@ -15,10 +15,10 @@ import (
 	"testing"
 	"time"
 
-	"faultline/internal/config"
-	"faultline/internal/control"
-	"faultline/internal/fault"
-	httpproxy "faultline/internal/proxy/http"
+	"github.com/plhhao/faultline/internal/config"
+	"github.com/plhhao/faultline/internal/control"
+	"github.com/plhhao/faultline/internal/fault"
+	httpproxy "github.com/plhhao/faultline/internal/proxy/http"
 )
 
 func address(t testing.TB) string {

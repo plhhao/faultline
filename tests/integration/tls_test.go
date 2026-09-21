@@ -20,8 +20,8 @@ import (
 	"testing"
 	"time"
 
-	"faultline/internal/control"
-	httpproxy "faultline/internal/proxy/http"
+	"github.com/plhhao/faultline/internal/control"
+	httpproxy "github.com/plhhao/faultline/internal/proxy/http"
 )
 
 func certificate(t *testing.T, wrongHost bool) (tls.Certificate, string, string, *x509.CertPool) {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"faultline/internal/config"
+	"github.com/plhhao/faultline/internal/config"
 )
 
 // Builtin executes actions from validated configuration using the adapter's capabilities.

@@ -7,6 +7,11 @@ and records what happened.
 Faultline supports HTTP/1.1, HTTP/2 and unary gRPC, with optional TLS/mTLS,
 file-based configuration, runtime controls, and one fault action per flow.
 
+It is a development and resilience-testing tool, not a production gateway or
+general-purpose TCP/database proxy. gRPC streaming is outside the verified
+scope; PostgreSQL and MySQL support is limited to the documented explicit
+transaction COMMIT flows.
+
 Start with the Vietnamese [user documentation](docs/README.md): quick start,
 configuration, CLI operations, tester UI, and PostgreSQL/MySQL adapters.
 
@@ -20,14 +25,17 @@ administration, JSON events, payment demo and binary/Docker delivery. See
 truncate and throttle. See the [examples and protocol contract](examples/grpc/README.md)
 and [15 acceptance criteria with verification results](plans/06-protocol-extensions/acceptance.md).
 
-**Phase 7:** managed HTTPS API and embedded tester UI are implemented; browser
-interaction acceptance is pending user testing. See the [tester setup and checklist](examples/tester/README.md)
-and [verification record](plans/07-tester-experience/acceptance.md).
+**Phase 7 is complete:** managed HTTPS API and embedded tester UI are
+implemented. Browser interaction acceptance was reported passing by the tester.
+See the [tester setup and checklist](examples/tester/README.md) and
+[verification record](plans/07-tester-experience/acceptance.md).
 
 **Phase 9:** PostgreSQL explicit-transaction faults are implemented with SCRAM-SHA-256
 and per-leg TLS. Delay, bounded hold and disconnect can intercept confirmed COMMIT
 acknowledgments. See the [runnable PostgreSQL demo and UI checklist](examples/postgresql/README.md)
-and [verification record](plans/09-semantic-adapters/acceptance.md). Manual UI acceptance is pending.
+and [verification record](plans/09-semantic-adapters/acceptance.md). The
+PostgreSQL-specific UI checklist was reported passing; mixed-protocol browser
+acceptance remains pending.
 
 **MySQL (P25):** explicit-transaction COMMIT faults are implemented for MySQL8.4.8,
 with caching_sha2_password and plaintext/plaintext or TLS/TLS connections.
@@ -254,12 +262,16 @@ added when their implementation begins.
 
 ## Go module
 
-The initial module path is `faultline`, using the locally installed Go 1.26.4
-toolchain. Replace the module path with the repository's canonical path when
-that address is established, updating imports at the same time.
+The module path is `github.com/plhhao/faultline`, using Go 1.26.4.
 
 The YAML dependency is pinned in `go.mod` and `go.sum`; the CLI uses the standard
 library flag parser and HTTP server/transport.
+
+## Contributing and security
+
+Faultline is licensed under the [Apache License 2.0](LICENSE). See
+[CONTRIBUTING.md](CONTRIBUTING.md) for development and pull-request guidance,
+and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
 
 ## Development checks
 

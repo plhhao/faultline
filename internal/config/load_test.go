@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"faultline/internal/config"
+	"github.com/plhhao/faultline/internal/config"
 )
 
 func writeConfig(t *testing.T, path, data string) {

@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"faultline/internal/config"
+	"github.com/plhhao/faultline/internal/config"
 )
 
 func writeCertificate(t *testing.T, dir string) {

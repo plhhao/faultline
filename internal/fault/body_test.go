@@ -9,7 +9,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"faultline/internal/config"
+	"github.com/plhhao/faultline/internal/config"
 )
 
 func TestTruncateBoundaries(t *testing.T) {

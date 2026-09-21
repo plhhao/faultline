@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"faultline/internal/config"
+	"github.com/plhhao/faultline/internal/config"
 )
 
 func TestPostgreSQLManagedAPI(t *testing.T) {

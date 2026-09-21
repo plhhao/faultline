@@ -8,7 +8,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"faultline/internal/config"
+	"github.com/plhhao/faultline/internal/config"
 )
 
 type capabilities struct {

@@ -15,11 +15,11 @@ import (
 	"testing"
 	"time"
 
-	"faultline/internal/config"
-	"faultline/internal/control/admin"
-	"faultline/internal/fault"
-	httpproxy "faultline/internal/proxy/http"
-	"faultline/internal/recorder"
+	"github.com/plhhao/faultline/internal/config"
+	"github.com/plhhao/faultline/internal/control/admin"
+	"github.com/plhhao/faultline/internal/fault"
+	httpproxy "github.com/plhhao/faultline/internal/proxy/http"
+	"github.com/plhhao/faultline/internal/recorder"
 )
 
 func adminSocket(t *testing.T) string {

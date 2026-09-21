@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"faultline/internal/control"
-	"faultline/internal/control/admin"
-	"faultline/internal/recorder"
+	"github.com/plhhao/faultline/internal/control"
+	"github.com/plhhao/faultline/internal/control/admin"
+	"github.com/plhhao/faultline/internal/recorder"
 )
 
 func TestCLIChildProcess(t *testing.T) {

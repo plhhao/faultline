@@ -12,15 +12,15 @@ import (
 	"syscall"
 	"time"
 
-	"faultline/internal/config"
-	"faultline/internal/control"
-	"faultline/internal/control/admin"
-	"faultline/internal/control/remote"
-	"faultline/internal/fault"
-	httpproxy "faultline/internal/proxy/http"
-	"faultline/internal/proxy/mysql"
-	"faultline/internal/proxy/postgresql"
-	"faultline/internal/recorder"
+	"github.com/plhhao/faultline/internal/config"
+	"github.com/plhhao/faultline/internal/control"
+	"github.com/plhhao/faultline/internal/control/admin"
+	"github.com/plhhao/faultline/internal/control/remote"
+	"github.com/plhhao/faultline/internal/fault"
+	httpproxy "github.com/plhhao/faultline/internal/proxy/http"
+	"github.com/plhhao/faultline/internal/proxy/mysql"
+	"github.com/plhhao/faultline/internal/proxy/postgresql"
+	"github.com/plhhao/faultline/internal/recorder"
 )
 
 func main() {

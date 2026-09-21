@@ -2,6 +2,15 @@
 
 Completed work following DEFINE → PLAN → BUILD → VERIFY → REVIEW.
 
+## 2026-09-21
+
+- Prepared the repository for public release: set the Go module to
+  `github.com/plhhao/faultline`, migrated internal imports, added the standard
+  Apache-2.0 license, contribution/security policy, GitHub CI, Dependabot and
+  issue/PR templates. Updated README scope/status and ignored local runtime
+  artifacts. `go build ./...`, `go test ./...` and `go vet ./...` passed; tests
+  were run with localhost/Unix-socket permission.
+
 ## 2026-09-20
 
 - Added `docs/deployment.md` for Linux/systemd deployment: file and managed UI

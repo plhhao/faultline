@@ -1,8 +1,8 @@
 package config_test
 
 import (
-	"faultline/internal/config"
-	"faultline/internal/control"
+	"github.com/plhhao/faultline/internal/config"
+	"github.com/plhhao/faultline/internal/control"
 	"os"
 	"path/filepath"
 	"strings"

@@ -12,9 +12,9 @@ import (
 	"net/url"
 	"sync"
 
-	"faultline/internal/control"
-	"faultline/internal/fault"
-	"faultline/internal/recorder"
+	"github.com/plhhao/faultline/internal/control"
+	"github.com/plhhao/faultline/internal/fault"
+	"github.com/plhhao/faultline/internal/recorder"
 )
 
 // Observe runs synchronously as a flow finishes; it must be concurrency-safe and bounded.

@@ -6,9 +6,9 @@ import (
 	"sync"
 	"testing"
 
-	"faultline/internal/config"
-	"faultline/internal/control"
-	"faultline/internal/engine"
+	"github.com/plhhao/faultline/internal/config"
+	"github.com/plhhao/faultline/internal/control"
+	"github.com/plhhao/faultline/internal/engine"
 )
 
 func document(t *testing.T, seed int, selector string) *config.Document {

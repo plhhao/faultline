@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"faultline/internal/config"
-	"faultline/internal/engine"
+	"github.com/plhhao/faultline/internal/config"
+	"github.com/plhhao/faultline/internal/engine"
 )
 
 type Info struct {

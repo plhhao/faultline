@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"faultline/internal/config"
+	"github.com/plhhao/faultline/internal/config"
 )
 
 var ErrTruncated = errors.New("body truncated by fault")

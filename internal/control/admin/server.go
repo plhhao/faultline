@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"faultline/internal/control"
-	"faultline/internal/recorder"
+	"github.com/plhhao/faultline/internal/control"
+	"github.com/plhhao/faultline/internal/recorder"
 )
 
 type RuleCounters struct {

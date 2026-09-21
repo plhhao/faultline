@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"faultline/internal/config"
-	"faultline/internal/control"
-	"faultline/internal/engine"
-	"faultline/internal/recorder"
+	"github.com/plhhao/faultline/internal/config"
+	"github.com/plhhao/faultline/internal/control"
+	"github.com/plhhao/faultline/internal/engine"
+	"github.com/plhhao/faultline/internal/recorder"
 )
 
 func privateDir(t *testing.T) string {

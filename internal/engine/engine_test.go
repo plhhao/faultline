@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"faultline/internal/config"
-	"faultline/internal/engine"
+	"github.com/plhhao/faultline/internal/config"
+	"github.com/plhhao/faultline/internal/engine"
 )
 
 func newEngine(t *testing.T, rules string) *engine.Engine {

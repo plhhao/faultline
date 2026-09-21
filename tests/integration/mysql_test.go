@@ -16,10 +16,10 @@ import (
 	"testing"
 	"time"
 
-	"faultline/internal/config"
-	"faultline/internal/control"
-	proxy "faultline/internal/proxy/mysql"
-	"faultline/internal/recorder"
+	"github.com/plhhao/faultline/internal/config"
+	"github.com/plhhao/faultline/internal/control"
+	proxy "github.com/plhhao/faultline/internal/proxy/mysql"
+	"github.com/plhhao/faultline/internal/recorder"
 	driver "github.com/go-sql-driver/mysql"
 )
 

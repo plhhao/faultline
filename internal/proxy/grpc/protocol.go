@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"faultline/internal/engine"
+	"github.com/plhhao/faultline/internal/engine"
 )
 
 func Metadata(r *http.Request) (engine.Metadata, bool) {

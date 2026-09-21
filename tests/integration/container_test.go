@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"faultline/examples/http/paymentdemo"
-	"faultline/internal/control"
-	"faultline/internal/control/admin"
+	"github.com/plhhao/faultline/examples/http/paymentdemo"
+	"github.com/plhhao/faultline/internal/control"
+	"github.com/plhhao/faultline/internal/control/admin"
 )
 
 // This opt-in test builds the delivery Dockerfile and removes its own image/containers.
