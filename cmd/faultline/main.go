@@ -20,6 +20,7 @@ import (
 	httpproxy "github.com/plhhao/faultline/internal/proxy/http"
 	"github.com/plhhao/faultline/internal/proxy/mysql"
 	"github.com/plhhao/faultline/internal/proxy/postgresql"
+	"github.com/plhhao/faultline/internal/proxy/rabbitmq"
 	"github.com/plhhao/faultline/internal/recorder"
 )
 
@@ -163,8 +164,13 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	defer myServer.Close()
+	rabbitServer, err := rabbitmq.Start(service, records)
+	if err != nil {
+		return err
+	}
+	defer rabbitServer.Close()
 	listeners := func() []control.ListenerStatus {
-		return append(append(server.Listeners(), pgServer.Listeners()...), myServer.Listeners()...)
+		return append(append(append(server.Listeners(), pgServer.Listeners()...), myServer.Listeners()...), rabbitServer.Listeners()...)
 	}
 	management, err := admin.Start(socket, service, records, listeners, managed != nil)
 	if err != nil {
@@ -176,6 +182,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		defer cancel()
 		myServer.Close()
 		pgServer.Close()
+		rabbitServer.Close()
 		server.Shutdown(drain)
 		counts := records.Counters()
 		records.Record(recorder.Event{Info: service.Acquire().Info(), Type: "control", Operation: "shutdown", Outcome: "stopped", Counters: &counts})
@@ -195,6 +202,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	case <-ctx.Done():
 		return nil
 	case err := <-myServer.Errors():
+		return err
+	case err := <-rabbitServer.Errors():
 		return err
 	case err := <-pgServer.Errors():
 		return err

@@ -1,0 +1,15 @@
+api_version: faultline/v1alpha1
+runtime:
+  request_timeout: 5s
+  max_inflight_requests: 100
+proxies:
+  - id: events
+    protocol: rabbitmq
+    listen: 127.0.0.1:15672
+    upstream: amqp://127.0.0.1:5672
+    rules:
+      - id: lose-payment-confirm
+        enabled: true
+        match: {exchange: "", routing_key: payment.created}
+        select: {probability: 1}
+        fault: {action: close_connection, phase: after_publish_confirm}

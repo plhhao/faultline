@@ -27,8 +27,8 @@ func validateTLS(p *Proxy, base, path string, digests map[string][32]byte) error
 		digests[*name] = sha256.Sum256(data)
 		return data, nil
 	}
-	if (p.Protocol == "postgresql" || p.Protocol == "mysql") && (p.TLS != nil && p.TLS.ClientCAFile != "" || p.UpstreamTLS != nil && (p.UpstreamTLS.CertFile != "" || p.UpstreamTLS.KeyFile != "")) {
-		return invalid(path+".tls", "database mTLS is unsupported")
+	if (p.Protocol == "postgresql" || p.Protocol == "mysql" || p.Protocol == "rabbitmq") && (p.TLS != nil && p.TLS.ClientCAFile != "" || p.UpstreamTLS != nil && (p.UpstreamTLS.CertFile != "" || p.UpstreamTLS.KeyFile != "")) {
+		return invalid(path+".tls", "database and RabbitMQ mTLS are unsupported")
 	}
 	if p.Protocol == "mysql" && ((p.TLS != nil) != strings.HasPrefix(p.Upstream, "mysqls://")) {
 		return invalid(path+".tls", "mysql requires both TLS legs or both plaintext legs")
@@ -75,7 +75,7 @@ func validateTLS(p *Proxy, base, path string, digests map[string][32]byte) error
 		}
 	}
 	if p.UpstreamTLS != nil {
-		if !strings.HasPrefix(p.Upstream, "https://") && !strings.HasPrefix(p.Upstream, "postgresqls://") && !strings.HasPrefix(p.Upstream, "mysqls://") {
+		if !strings.HasPrefix(p.Upstream, "https://") && !strings.HasPrefix(p.Upstream, "postgresqls://") && !strings.HasPrefix(p.Upstream, "mysqls://") && !strings.HasPrefix(p.Upstream, "amqps://") {
 			return invalid(path+".upstream_tls", "requires a TLS upstream")
 		}
 		u := p.UpstreamTLS

@@ -31,8 +31,8 @@ func validate(c *Config, base string) (map[string][32]byte, error) {
 		if !identifier(p.ID) {
 			return nil, invalid(path+".id", "expected a nonempty identifier")
 		}
-		if p.Protocol != "http1" && p.Protocol != "http2" && p.Protocol != "grpc" && p.Protocol != "postgresql" && p.Protocol != "mysql" {
-			return nil, invalid(path+".protocol", "expected http1, http2, grpc, postgresql or mysql")
+		if p.Protocol != "http1" && p.Protocol != "http2" && p.Protocol != "grpc" && p.Protocol != "postgresql" && p.Protocol != "mysql" && p.Protocol != "rabbitmq" {
+			return nil, invalid(path+".protocol", "expected http1, http2, grpc, postgresql, mysql or rabbitmq")
 		}
 		if p.UpstreamProtocol == "" {
 			p.UpstreamProtocol = p.Protocol
@@ -40,10 +40,10 @@ func validate(c *Config, base string) (map[string][32]byte, error) {
 				p.UpstreamProtocol = "http2"
 			}
 		}
-		if (p.Protocol == "postgresql" || p.Protocol == "mysql") && p.UpstreamProtocol != p.Protocol {
-			return nil, invalid(path+".upstream_protocol", "database upstream protocol must match listener")
+		if (p.Protocol == "postgresql" || p.Protocol == "mysql" || p.Protocol == "rabbitmq") && p.UpstreamProtocol != p.Protocol {
+			return nil, invalid(path+".upstream_protocol", "database or broker upstream protocol must match listener")
 		}
-		if p.Protocol != "postgresql" && p.Protocol != "mysql" && (p.UpstreamProtocol != "http1" && p.UpstreamProtocol != "http2" || p.Protocol == "grpc" && p.UpstreamProtocol != "http2") {
+		if p.Protocol != "postgresql" && p.Protocol != "mysql" && p.Protocol != "rabbitmq" && (p.UpstreamProtocol != "http1" && p.UpstreamProtocol != "http2" || p.Protocol == "grpc" && p.UpstreamProtocol != "http2") {
 			return nil, invalid(path+".upstream_protocol", "expected http1 or http2; grpc requires http2")
 		}
 		host, port, err := net.SplitHostPort(p.Listen)
@@ -62,16 +62,21 @@ func validate(c *Config, base string) (map[string][32]byte, error) {
 		u, err := url.Parse(p.Upstream)
 		if err != nil || !validUpstreamScheme(p.Protocol, u.Scheme) || u.User != nil || !hostname(u.Hostname()) || u.Opaque != "" || (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.ForceQuery || strings.Contains(p.Upstream, "#") {
 			scheme := "HTTP(S)"
-			if p.Protocol == "postgresql" || p.Protocol == "mysql" {
+			if p.Protocol == "postgresql" || p.Protocol == "mysql" || p.Protocol == "rabbitmq" {
 				scheme = p.Protocol + "(s)"
 			}
 			return nil, invalid(path+".upstream", "expected a "+scheme+" origin without credentials, path, query or fragment")
 		}
 		port = u.Port()
-		if (p.Protocol == "postgresql" || p.Protocol == "mysql") && port == "" && !strings.HasSuffix(u.Host, ":") {
+		if (p.Protocol == "postgresql" || p.Protocol == "mysql" || p.Protocol == "rabbitmq") && port == "" && !strings.HasSuffix(u.Host, ":") {
 			port = "5432"
 			if p.Protocol == "mysql" {
 				port = "3306"
+			} else if p.Protocol == "rabbitmq" {
+				port = "5672"
+				if u.Scheme == "amqps" {
+					port = "5671"
+				}
 			}
 		}
 		if port != "" {
@@ -116,6 +121,12 @@ func validate(c *Config, base string) (map[string][32]byte, error) {
 			}
 			if p.Protocol == "postgresql" || p.Protocol == "mysql" {
 				if err := validateCommitRule(r, rp); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			if p.Protocol == "rabbitmq" {
+				if err := validateRabbitMQRule(r, rp); err != nil {
 					return nil, err
 				}
 				continue
@@ -330,6 +341,9 @@ func validUpstreamScheme(protocol, scheme string) bool {
 	if protocol == "postgresql" || protocol == "mysql" {
 		return scheme == protocol || scheme == protocol+"s"
 	}
+	if protocol == "rabbitmq" {
+		return scheme == "amqp" || scheme == "amqps"
+	}
 	return scheme == "http" || scheme == "https"
 }
 
@@ -348,5 +362,24 @@ func validateCommitRule(r *Rule, path string) error {
 		return err
 	}
 	r.Match.Headers = copy.Match.Headers
+	return nil
+}
+
+func validateRabbitMQRule(r *Rule, path string) error {
+	m := r.Match
+	if m.Method != "" || m.Path != "" || m.PathPattern != "" || m.Service != "" || len(m.Headers) != 0 {
+		return invalid(path+".match", "rabbitmq supports only exchange and routing_key matcher fields")
+	}
+	if strings.ContainsAny(m.Exchange, "\r\n\x00") || strings.ContainsAny(m.RoutingKey, "\r\n\x00") {
+		return invalid(path+".match", "invalid exchange or routing_key")
+	}
+	if r.Fault.Phase != AfterPublishConfirm {
+		return invalid(path+".fault.phase", "rabbitmq requires after_publish_confirm")
+	}
+	copy := *r
+	copy.Fault.Phase = AfterUpstreamHeaders
+	if err := validateRule(&copy, path); err != nil {
+		return err
+	}
 	return nil
 }

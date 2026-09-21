@@ -11,6 +11,7 @@ import (
 const APIVersion = "faultline/v1alpha1"
 const (
 	AfterCommit           = "after_commit"
+	AfterPublishConfirm   = "after_publish_confirm"
 	BeforeUpstreamRequest = "before_upstream_request"
 	AfterUpstreamHeaders  = "after_upstream_headers"
 )
@@ -64,6 +65,8 @@ type Matcher struct {
 	Service     string            `yaml:"service"`
 	Path        string            `yaml:"path"`
 	Headers     map[string]string `yaml:"headers"`
+	Exchange    string            `yaml:"exchange"`
+	RoutingKey  string            `yaml:"routing_key"`
 }
 
 type Selector struct {

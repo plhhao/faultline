@@ -13,10 +13,12 @@ import (
 
 // Metadata is supplied by an adapter; Headers retains individual values without joining them.
 type Metadata struct {
-	Method  string
-	Service string
-	Path    string
-	Headers map[string][]string
+	Method     string
+	Service    string
+	Path       string
+	Headers    map[string][]string
+	Exchange   string
+	RoutingKey string
 }
 
 type Decision struct {
@@ -129,6 +131,9 @@ func matches(m config.Matcher, metadata Metadata) bool {
 		return false
 	}
 	if m.Method != "" && m.Method != metadata.Method || m.Path != "" && m.Path != path {
+		return false
+	}
+	if m.Exchange != "" && m.Exchange != metadata.Exchange || m.RoutingKey != "" && m.RoutingKey != metadata.RoutingKey {
 		return false
 	}
 	if m.PathPattern != "" && !matchesPathPattern(m.PathPattern, path) {

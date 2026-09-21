@@ -4,6 +4,36 @@ Completed work following DEFINE → PLAN → BUILD → VERIFY → REVIEW.
 
 ## 2026-09-21
 
+- Corrected RabbitMQ P27 flow correlation: flows start after complete content,
+  channel closure resets reusable channel state, returned mandatory publishes do
+  not inject confirm faults, multiple-confirm telemetry marks each selected
+  publish reached, and handshake timeout is bounded. Added unit coverage plus a
+  pinned-broker return fixture; RabbitMQ race fixture, full Go race regression,
+  vet, build and Node UI tests passed. Phase 10 remains in progress for its
+  outstanding multi-channel, reload/retry and lifecycle acceptance gates.
+
+- Implemented the in-progress RabbitMQ P27 slice: AMQP 0-9-1
+  publisher-confirm delay/hold/disconnect faults, exact exchange/routing-key
+  matching, frame/session bounds, config/CLI/managed UI support, a public
+  example and pinned plaintext/TLS Docker fixtures. Full Go race regression,
+  vet, build, Docker build, Node UI tests and RabbitMQ runtime fixtures passed.
+  Phase 10 remains in progress for multi-channel, retry and lifecycle acceptance
+  gates; mTLS, AMQP 1.0, Streams and clusters remain unsupported.
+
+- Planned Phase 11 BullMQ support: added P28 contract and P29 implementation
+  gates for a scoped BullMQ-over-RESP adapter. The plans cover `Queue.add` Lua
+  script completion, persistent/pipelined connections, TLS/authentication,
+  reconnect/retry evidence, and bounded fixtures. Updated roadmap and
+  specification links; planning only, with no Redis or BullMQ runtime support
+  claim.
+
+- Planned Phase 10 RabbitMQ support: added P26 contract and P27 implementation
+  gates for an AMQP 0-9-1 semantic adapter, publisher confirms, consumer
+  delivery, persistent-connection correlation, and TLS/authentication decisions.
+  Updated the roadmap and specification links. Local Markdown links and
+  whitespace were checked; planning only, with no runtime implementation or
+  protocol compatibility claim.
+
 - Rewrote the root README as an English GitHub landing page with an executable
   upstream/proxy quick start and direct documentation links. Translated the
   complete `docs/` user-documentation set to English and replaced workspace-only

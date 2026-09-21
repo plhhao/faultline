@@ -2,7 +2,7 @@ package config
 
 // Actions lists editor choices; Parse remains authoritative for field combinations.
 func Actions(protocol string) []string {
-	if protocol == "postgresql" || protocol == "mysql" {
+	if protocol == "postgresql" || protocol == "mysql" || protocol == "rabbitmq" {
 		return []string{"delay", "hold_response", "close_connection"}
 	}
 	actions := []string{"delay", "hold_request", "hold_response", "truncate", "throttle"}

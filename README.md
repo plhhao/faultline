@@ -17,6 +17,7 @@ gateway, load balancer, or general-purpose TCP/database proxy.
 | gRPC | Unary gRPC over HTTP/2 with service, method, and metadata matching. Streaming is out of scope. |
 | PostgreSQL | Explicit-transaction COMMIT acknowledgement delay, bounded hold, and disconnect faults. |
 | MySQL | The same explicit-COMMIT faults for MySQL 8.4.8. |
+| RabbitMQ | AMQP 0-9-1 publisher-confirm delay, bounded hold, and disconnect faults. |
 | Control | File configuration, local Unix-socket control, managed HTTPS UI/API, NDJSON events, and bounded counters. |
 
 Database faults model a COMMIT that the upstream has confirmed but whose
@@ -68,6 +69,7 @@ lost-response payment demonstration.
 - [Runtime operations](docs/operations.md)
 - [Tester UI](docs/tester-ui.md)
 - [PostgreSQL and MySQL](docs/databases.md)
+- [RabbitMQ publisher-confirm example](examples/rabbitmq/README.md)
 - [Linux/systemd and Docker deployment](docs/deployment.md)
 
 ## Operational boundaries
@@ -81,6 +83,8 @@ lost-response payment demonstration.
   UI/API; its Unix socket exposes read-only `status`.
 - PostgreSQL/MySQL support only the documented explicit-COMMIT grammar and
   actions. MySQL supports plaintext/plaintext or TLS/TLS legs, not mixed TLS.
+- RabbitMQ supports only AMQP 0-9-1 publisher confirms on a direct broker;
+  mTLS, AMQP 1.0, Streams, clusters, and payload matching are out of scope.
 
 ## Development
 

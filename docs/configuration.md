@@ -36,6 +36,8 @@ field.
 | `path_pattern` | Absolute path; `:name` matches one non-empty segment. |
 | `headers` | Header/metadata object with exact string values. |
 | `service` | Exact gRPC service. |
+| `exchange` | Exact AMQP 0-9-1 publish exchange; RabbitMQ only. |
+| `routing_key` | Exact AMQP 0-9-1 publish routing key; RabbitMQ only. |
 
 `path_pattern: /payment/:id` matches `/payment/42` and `/payment/history`, but
 not `/payment/42/items`. Put an exact `/payment/history` rule before the pattern
@@ -72,6 +74,11 @@ for HTTP/2, gRPC, and mTLS details.
 
 PostgreSQL and MySQL accept only matcher `{}`, phase `after_commit`, and
 `delay`, `hold_response`, or `close_connection` actions.
+
+RabbitMQ accepts `exchange` and/or `routing_key`, phase
+`after_publish_confirm`, and the same three actions. The phase means RabbitMQ
+has sent a publisher confirm to Faultline; it does not mean a consumer has
+received or processed the message. See [the RabbitMQ example](../examples/rabbitmq/README.md).
 
 ## Reload or restart
 

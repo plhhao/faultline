@@ -23,7 +23,7 @@ function editor(protocol) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, "ui/app.js"), "utf8"), context);
   vm.runInContext(`
     session = {role:"editor"};
-    caps = {actions:{mysql:["delay","hold_response","close_connection"],postgresql:["delay","hold_response","close_connection"],http1:["delay","hold_response","close_connection","respond"]}, phases:["before_upstream_request","after_upstream_headers"], protocol_phases:{mysql:["after_commit"],postgresql:["after_commit"]}, selectors:["Probability","Nth","Every"]};
+    caps = {actions:{mysql:["delay","hold_response","close_connection"],postgresql:["delay","hold_response","close_connection"],rabbitmq:["delay","hold_response","close_connection"],http1:["delay","hold_response","close_connection","respond"]}, phases:["before_upstream_request","after_upstream_headers"], protocol_phases:{mysql:["after_commit"],postgresql:["after_commit"],rabbitmq:["after_publish_confirm"]}, selectors:["Probability","Nth","Every"]};
     active = {proxies:[{id:"proxy",protocol:${JSON.stringify(protocol)},listen:"local",upstream:"upstream"}]};
     draft = {proxies:[{id:"proxy",rules:[{ID:"r",Enabled:true,Match:{},Select:{Probability:1},Fault:defaultFault("delay",${JSON.stringify(protocol)})}]}]};
     renderRules();
@@ -48,6 +48,15 @@ test("MySQL editor exposes commit faults without HTTP matching", () => {
   assert(!labels.includes("respond"));
   assert.equal(vm.runInContext('defaultFault("hold_response","mysql").Phase', context), "after_commit");
   assert.equal(vm.runInContext('defaultFault("close_connection","mysql").Phase', context), "after_commit");
+});
+
+test("RabbitMQ editor exposes publisher-confirm matching", () => {
+  const {context, labels} = editor("rabbitmq");
+  assert(labels.includes("Exchange (blank = any)"));
+  assert(labels.includes("Routing key (blank = any)"));
+  assert(!labels.some(text => text.startsWith("HTTP method") || text === "Path match"));
+  assert.equal(vm.runInContext('defaultFault("hold_response","rabbitmq").Phase', context), "after_publish_confirm");
+  assert.equal(vm.runInContext('defaultFault("close_connection","rabbitmq").Phase', context), "after_publish_confirm");
 });
 
 test("HTTP editor retains its own matching and phases", () => {

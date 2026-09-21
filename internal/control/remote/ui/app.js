@@ -64,6 +64,7 @@ function field(parent, label, value, change, options) {
 function defaultFault(action, protocol) {
   const f = {Action:action, Phase: action === "hold_response" ? "after_upstream_headers" : "before_upstream_request"};
   if (["postgresql", "mysql"].includes(protocol)) f.Phase = "after_commit";
+  if (protocol === "rabbitmq") f.Phase = "after_publish_confirm";
   if (action === "delay") f.Duration = 100000000;
   if (action.startsWith("hold_")) f.MaxDuration = 5000000000;
   if (action === "respond") { f.Status = 503; f.Body = "Injected fault"; }
@@ -92,8 +93,14 @@ function renderRules() {
     const selector = selectorKinds.get(r) || ["Probability", "Nth", "Every"].find(k => r.Select[k] != null) || "Probability";
     selectorKinds.set(r, selector);
     field(grid, "Selector", selector, v => { selectorKinds.set(r,v); r.Select = {[v]: 1}; renderRules(); }, caps.selectors);
-    const number = field(grid, selector === "Probability" ? "Probability (0–1; 1 = 100%)" : `${selector} eligible ${["postgresql", "mysql"].includes(info.protocol) ? "commit" : "request"}`, r.Select[selector], v => r.Select[selector] = v === "" ? null : Number(v)); number.type = "number"; number.step = selector === "Probability" ? "any" : "1";
-    if (!["postgresql", "mysql"].includes(info.protocol)) {
+    const semantic = ["postgresql", "mysql", "rabbitmq"].includes(info.protocol);
+    const unit = ["postgresql", "mysql"].includes(info.protocol) ? "commit" : info.protocol === "rabbitmq" ? "publish" : "request";
+    const number = field(grid, selector === "Probability" ? "Probability (0–1; 1 = 100%)" : `${selector} eligible ${unit}`, r.Select[selector], v => r.Select[selector] = v === "" ? null : Number(v)); number.type = "number"; number.step = selector === "Probability" ? "any" : "1";
+    if (info.protocol === "rabbitmq") {
+      field(grid, "Exchange (blank = any)", r.Match.Exchange, v => r.Match.Exchange = v);
+      field(grid, "Routing key (blank = any)", r.Match.RoutingKey, v => r.Match.RoutingKey = v);
+      element("p", "Matches publisher confirms for AMQP 0-9-1 publishes. A held or closed confirm means RabbitMQ may already have accepted the message.", box);
+    } else if (!semantic) {
       field(grid, info.protocol === "grpc" ? "RPC method (blank = any)" : "HTTP method (blank = any)", r.Match.Method, v => r.Match.Method = v);
       element("p", "Method filters which requests receive faults. A blank method matches all methods; forwarding preserves the original method.", box);
       const pathKind = pathKinds.get(r) || (r.Match.PathPattern ? "Pattern" : r.Match.Path ? "Exact" : "Any");
@@ -162,7 +169,7 @@ $("toastClose").onclick=()=>{clearTimeout(toastTimer);$("toast").hidden=true;};
 $("login").onsubmit=async event=>{event.preventDefault(); try { const fields=new FormData(event.target); session=await api("login",{name:fields.get("name"),password:fields.get("password")}); event.target.reset(); message(); await signedIn(); } catch(error) { message(error.message); }};
 $("logout").onclick=act(async()=>{await api("logout",{}); session=undefined; $("injectionBadge").hidden=true; draft=undefined; $("workspace").hidden=true; $("loginPanel").hidden=false; $("logout").hidden=true; $("identity").textContent="";});
 $("proxy").onchange=()=>{selected=Number($("proxy").value);renderRules();};
-$("add").onclick=()=>{const p=draft.proxies[selected];p.rules.push({ID:`rule-${Date.now()}`,Enabled:true,Match:{Method:"",Path:"",PathPattern:"",Service:"",Headers:{}},Select:{Probability:1},Fault:defaultFault("delay", active.proxies.find(x => x.id === p.id)?.protocol)});edited();renderRules();};
+$("add").onclick=()=>{const p=draft.proxies[selected];p.rules.push({ID:`rule-${Date.now()}`,Enabled:true,Match:{Method:"",Path:"",PathPattern:"",Service:"",Headers:{},Exchange:"",RoutingKey:""},Select:{Probability:1},Fault:defaultFault("delay", active.proxies.find(x => x.id === p.id)?.protocol)});edited();renderRules();};
 $("refresh").onclick=act(async()=>{await loadActive();reviewed="";showDiff();message("Latest active loaded for comparison. Your draft is unchanged.");});
 $("rebase").onclick=()=>{if(confirm("Keep ALL draft rules shown on the right and use the latest revision as the base? This may replace another tester's edits. Compare both panels first.")){draft.base_revision=active.revision;edited();}};
 $("discard").onclick=act(async()=>{if(confirm("Discard all edits in this tab and load the active config?")){await loadActive();resetDraft();$("validation").textContent="Draft reset to active config.";}});
