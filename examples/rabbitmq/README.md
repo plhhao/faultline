@@ -56,5 +56,26 @@ Run the opt-in Docker fixture:
 
 ```sh
 FAULTLINE_RABBITMQ_TEST=1 go test -race ./tests/integration \
-  -run '^TestRabbitMQ(TLS)?Real$' -count=1 -timeout 240s
+  -run '^TestRabbitMQ' -count=1 -timeout 240s
 ```
+
+The retry fixture `TestRabbitMQPersistentChannelsAndRetry` publishes through
+Faultline, loses its confirm, disables injection, reconnects and republishes.
+An independent broker connection observes **two messages**: the original and
+the application's retry. AMQP publisher confirms do not deduplicate a retry;
+applications must supply their own idempotency policy. The fixture also checks
+heartbeats, two channels, channel reuse, consumer nack/requeue and shutdown.
+
+To include the non-root Faultline Docker image (build, CLI enable, lost confirm,
+independent message observation and clean stop), run:
+
+```sh
+FAULTLINE_DOCKER_TEST=1 FAULTLINE_RABBITMQ_TEST=1 go test -race ./tests/integration \
+  -run '^TestRabbitMQContainerRuntime$' -count=1 -timeout 240s
+```
+
+Confirm delay gates subsequent server-to-client frames, including other
+channels and heartbeats. A delay longer than the client's heartbeat tolerance
+can therefore disconnect it. Exact frame-order tests use a controlled AMQP
+peer; broker tests verify the client-visible behavior. See the
+[acceptance evidence](../../plans/10-rabbitmq-adapter/rabbitmq-acceptance.md).

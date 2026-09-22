@@ -178,6 +178,8 @@ func (s *Server) serve(e *endpoint, raw net.Conn) {
 }
 
 func connectUpstream(ctx context.Context, e *endpoint, timeout time.Duration) (net.Conn, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	raw, err := (&net.Dialer{Timeout: timeout}).DialContext(ctx, "tcp", e.address)
 	if err != nil {
 		return nil, err
@@ -528,6 +530,9 @@ func (s *session) handleConfirm(f frame, tag uint64, multiple, accepted bool) (b
 	}
 	if chosen == nil {
 		if err := writeFrame(s.client, f); err != nil {
+			for _, p := range publishes {
+				s.finish(p, "publish_confirm_lost")
+			}
 			return false, err
 		}
 		for _, p := range publishes {
@@ -549,6 +554,9 @@ func (s *session) handleConfirm(f frame, tag uint64, multiple, accepted bool) (b
 		return false, nil
 	}
 	if err := writeFrame(s.client, f); err != nil {
+		for _, p := range publishes {
+			s.finish(p, "publish_confirm_lost")
+		}
 		return false, err
 	}
 	for _, p := range publishes {
@@ -608,6 +616,7 @@ func (s *session) finishPending(outcome string) {
 
 func (s *session) exchange() {
 	ctx, cancel := context.WithCancel(s.ctx)
+	s.ctx = ctx
 	defer cancel()
 	defer s.finishPending("connection_closed")
 	var wg sync.WaitGroup
@@ -647,6 +656,7 @@ func (s *session) exchange() {
 	case <-ctx.Done():
 	case <-errs:
 	}
+	cancel()
 	_ = s.client.Close()
 	_ = s.upstream.Close()
 	wg.Wait()

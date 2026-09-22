@@ -1,6 +1,6 @@
 # P27 — RabbitMQ AMQP 0-9-1 adapter
 
-- Trạng thái: **In progress — automated publisher-confirm fixtures pass; see [acceptance](rabbitmq-acceptance.md)**.
+- Trạng thái: **Done — P27-AC1–AC9 verified 2026-09-22; see [acceptance](rabbitmq-acceptance.md)**.
 - Phụ thuộc: [P26](01-rabbitmq-contract.md) **Done** với contract và fixture
   matrix đã pin.
 - Nguồn: [phạm vi Phase 10](README.md), [đặc tả](../../specific.md).
@@ -69,12 +69,16 @@ Xác nhận không đưa AMQP I/O vào engine, không biến consumer `basic.ack
 publisher confirm, không mở rộng AMQP 1.0/Streams/cluster ngoài P26. Chỉ chuyển
 P27 và Phase 10 sang Done khi toàn bộ P27-AC1–AC9 đạt và evidence được ghi.
 
-## BUILD / VERIFY — 2026-09-21
+## BUILD / VERIFY — 2026-09-22
 
 Added `internal/proxy/rabbitmq`, `protocol: rabbitmq`, AMQP matcher/phase,
 binary/managed UI registration, a public example and pinned RabbitMQ Docker
 fixtures. Plaintext and TLS/TLS publisher confirms, delay/hold/close, direct
 message observation, consumer delivery/ack, returned mandatory publish,
-frame bounds and selected unit/UI tests pass. P27 remains In progress because
-the acceptance record still carries multi-channel/heartbeat broker evidence,
-application retry policy, selector reload behavior and lifecycle-bound gates.
+frame bounds and selected unit/UI tests pass. Additional fixtures verify
+multi-channel/heartbeat, channel reuse, application retry duplicates,
+selector/reload snapshots, TLS rejection, recorder secrecy and lifecycle bounds.
+The non-root container test found and now guards the HTTP listener ownership
+bug. Full Go race regression, vet/build, Node UI tests, CLI startup, container
+runtime, example validation and local documentation links pass. See acceptance
+for deterministic protocol coverage and the pinned scope limits.

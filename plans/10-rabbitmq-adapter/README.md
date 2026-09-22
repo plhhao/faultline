@@ -1,6 +1,6 @@
 # Phase 10 — RabbitMQ AMQP 0-9-1 adapter
 
-Phạm vi: **Sau MVP**. Trạng thái: **In progress — P26 Done; P27 có automated broker evidence, còn semantic/lifecycle gates**.
+Phạm vi: **Sau MVP**. Trạng thái: **Done — P26/P27; P27-AC1–AC9 verified 2026-09-22**.
 
 ## DEFINE — Phạm vi dự kiến
 
@@ -37,7 +37,7 @@ chỉ nhờ có TCP forwarding.
 | Thứ tự | Plan | Kết quả | Phụ thuộc | Trạng thái |
 | --- | --- | --- | --- | --- |
 | 1 | [P26](01-rabbitmq-contract.md) | Pin version/client; AMQP, TLS/auth, channel và publisher-confirm contract | Nền config/control/recorder hiện có | Done |
-| 2 | [P27](02-rabbitmq-adapter.md) | Adapter, config/API/UI, fixture Docker và acceptance evidence | P26 Done | In progress |
+| 2 | [P27](02-rabbitmq-adapter.md) | Adapter, config/API/UI, fixture Docker và acceptance evidence | P26 Done | Done |
 
 ## Điều kiện hoàn tất phase
 
@@ -73,7 +73,8 @@ Xem [lộ trình và quy tắc thực hiện](../README.md).
 ## Tiến độ
 
 P26 đã pin RabbitMQ 4.2.9 và `amqp091-go v1.15.0`; xem
-[contract](rabbitmq-contract.md). P27 đã có adapter, config/control/UI,
-plaintext và TLS/TLS Docker fixtures, publisher confirm fault evidence và basic
-consumer forwarding. Xem [acceptance](rabbitmq-acceptance.md) cho các gate còn
-lại; Phase 10 chưa Done.
+[contract](rabbitmq-contract.md). P27 hoàn tất adapter, config/control/UI,
+plaintext/TLS broker fixtures, multi-channel/heartbeat, selector/reload, retry,
+TLS rejection, lifecycle và CLI/container runtime. Xem
+[acceptance](rabbitmq-acceptance.md) cho bằng chứng P27-AC1–AC9 và giới hạn
+kiểm chứng. Phase 10 Done ngày 2026-09-22 trong phạm vi contract đã pin.

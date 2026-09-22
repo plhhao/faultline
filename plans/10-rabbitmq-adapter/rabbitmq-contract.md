@@ -53,13 +53,20 @@
   disconnect, broker close, channel close and shutdown close or clear the
   affected state and finish pending flows. Faultline never reconnects or retries
   a publish.
+- Active sessions are limited to `runtime.max_inflight_requests`; admission
+  also caps connections performing listener TLS handshakes at that limit plus
+  16. Pending publish limits are per channel, not a global memory budget.
 
 ## Evidence
 
 `TestRabbitMQReal` ran against the pinned broker with race detection: baseline,
 delay, hold and close after confirm; direct broker observation verified that the
 message existed for lost confirms. `TestRabbitMQTLSReal` verified TLS termination
-on both legs and a lost confirm. The concrete commands/results are recorded in
+on both legs and a lost confirm. Additional fixtures cover persistent channels,
+heartbeat, consumer nack/requeue, rejected publisher confirms, application retry,
+selector/reload snapshots, TLS rejection, recorder secrecy and container startup.
+Exact multiple-confirm boundaries and connection frame order use controlled
+protocol tests. The concrete commands/results are recorded in
 [acceptance](rabbitmq-acceptance.md).
 
 ## Sources

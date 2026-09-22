@@ -284,6 +284,26 @@ func TestProcessRuntimeReloadAndEvents(t *testing.T) {
 	stopAgain()
 }
 
+func TestProcessRabbitMQListener(t *testing.T) {
+	dir, err := os.MkdirTemp("/tmp", "faultline-rabbit-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	root, socket := filepath.Join(dir, "root.yaml"), filepath.Join(dir, "admin.sock")
+	addr := testAddress(t)
+	data := fmt.Sprintf("api_version: faultline/v1alpha1\nproxies:\n- id: broker\n  protocol: rabbitmq\n  listen: %s\n  upstream: amqp://127.0.0.1:5672\n", addr)
+	if err := os.WriteFile(root, []byte(data), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, stop := startProcess(t, root, socket, nil)
+	defer stop()
+	status := runtimeStatus(t, socket)
+	if !status.Ready || len(status.Listeners) != 1 || status.Listeners[0].ProxyID != "broker" || status.Listeners[0].Address != addr {
+		t.Fatalf("RabbitMQ listener status: %+v", status)
+	}
+}
+
 func TestClosedStdoutKeepsAdminAvailable(t *testing.T) {
 	dir, err := os.MkdirTemp("/tmp", "faultline-pipe-")
 	if err != nil {

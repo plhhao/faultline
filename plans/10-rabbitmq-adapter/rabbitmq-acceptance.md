@@ -1,59 +1,61 @@
 # RabbitMQ acceptance — P26/P27
 
-Environment: macOS arm64, Go 1.26.4, Docker/OrbStack, RabbitMQ 4.2.9 image
-digest and AMQP client pinned in [the contract](rabbitmq-contract.md).
+Environment: macOS arm64, Go 1.26.4, Docker/OrbStack. RabbitMQ 4.2.9 image
+digest and amqp091-go v1.15.0 are pinned in [the contract](rabbitmq-contract.md).
 
-## Automated evidence — 2026-09-21
+## Evidence — 2026-09-22
 
-```sh
-FAULTLINE_RABBITMQ_TEST=1 go test -race ./tests/integration \
-  -run '^TestRabbitMQ(ReturnDoesNotInject|TLSReal|Real)$' -count=1 -timeout 240s
-```
+| Criterion | Evidence | Result |
+| --- | --- | --- |
+| P27-AC1 | `TestRabbitMQReal`, `TestRabbitMQPersistentChannelsAndRetry`: PLAIN handshake, publisher confirms, consume/deliver/ack, consumer nack/requeue, heartbeat intervals, two channels and channel close/reopen. | PASS |
+| P27-AC2 | `TestRabbitMQSelectorsReload`: probability 0/1, nth/every, disabled and shadowed rules, exchange mismatch, routing-key match and reload on the same connection. `TestPublishSnapshotBeforeConfirm` pins a decision before ACK; `TestRabbitMQConcurrentSnapshot` verifies reload/disable during a delay and a new publish on another channel. | PASS |
+| P27-AC3 | Frame/confirm parsing, `TestMultipleConfirmOrdering`, `TestMultipleConfirmMarksAllSelectedPublishesReached`, `TestConfirmTagBoundaries`, `TestNackAndChannelCorrelation`; real broker `TestRabbitMQPublisherNack` uses queue overflow with reject-publish, and `TestRabbitMQReturnDoesNotInject` tests mandatory return. Partial-content and channel-reset tests cover flow boundaries. | PASS |
+| P27-AC4 | `TestRabbitMQReal`, `TestRabbitMQTLSReal`: delay timing; hold/close lose confirm while a direct independent client observes the message. | PASS |
+| P27-AC5 | `TestRabbitMQPersistentChannelsAndRetry`: application reconnects and retries; independent reads observe exactly two messages, original plus retry. The proxy does not retry. The example documents this duplicate outcome. | PASS |
+| P27-AC6 | `TestRabbitMQConcurrentSnapshot` exercises overlapping channels during a delay. `TestDelayedFramesPreserveConnectionOrder` feeds ACK, heartbeat and another channel's ACK through the session, verifies delay and exact order. Multiple-confirm tests verify one action per frame. | PASS |
+| P27-AC7 | Real plaintext and TLS/TLS fixtures; `TestRabbitMQTLSRejections` rejects an untrusted upstream CA, wrong upstream hostname and untrusted listener certificate. Config rejects mTLS. `TestRabbitMQRecorderSecrecy` rejects bad credentials and verifies no password/body/header values in recorder output. | PASS |
+| P27-AC8 | `lifecycle_test.go`: upstream TLS and AMQP handshake deadlines, released connection slot, frame/pending bounds, confirm-write failure, cancellation of hold/delay on disconnect, broker EOF and shutdown cleanup. Existing malformed-frame and channel-reset tests supplement these; race detection and active counters verify the exercised cleanup paths. | PASS |
+| P27-AC9 | Full Go race regression, vet/build, 13 Node UI tests, CLI process startup test and non-root Docker runtime fixture. The Docker test builds the delivery image, enables injection via CLI, observes the lost-confirm message independently and verifies exit code 0. Documentation links and example validation checked. | PASS |
 
-**PASS.** `TestRabbitMQReal` starts a fresh broker on a dynamic localhost port
-and verifies baseline publisher confirms plus `delay`, `hold_response` and
-`close_connection` after confirm. For hold/close, an independent direct AMQP
-connection reads the persisted message after the publisher loses its confirm.
-The baseline also verifies `basic.consume`, delivery and consumer `basic.ack`
-forwarding.
-`TestRabbitMQTLSReal` starts a TLS-only broker, terminates TLS on both Faultline
-legs, verifies trust, and observes the same lost-confirm outcome. Fixture
-containers are removed at test cleanup. `TestRabbitMQReturnDoesNotInject`
-verifies that an unroutable mandatory publish receives both return and ack
-without a `close_connection` fault.
+Commands run:
 
 ```sh
-go test ./internal/config ./internal/engine ./internal/control/remote \
-  ./internal/proxy/rabbitmq
-node --test internal/control/remote/app_test.cjs
+rtk proxy env FAULTLINE_RABBITMQ_TEST=1 go test -race ./tests/integration \
+  -run '^TestRabbitMQ' -count=1 -timeout 240s
+rtk proxy env FAULTLINE_DOCKER_TEST=1 FAULTLINE_RABBITMQ_TEST=1 \
+  go test -race ./tests/integration -run '^TestRabbitMQContainerRuntime$' \
+  -count=1 -timeout 240s
+rtk proxy go test -race ./internal/proxy/rabbitmq -count=1
+rtk proxy go test -race ./...
+rtk proxy go vet ./...
+rtk proxy go build ./...
+rtk proxy node --test internal/control/remote/app_test.cjs internal/control/remote/diff_test.cjs
+rtk proxy go run ./cmd/faultline validate --config examples/rabbitmq/config.yaml
+rtk proxy git diff --check
 ```
 
-**PASS.** Covers RabbitMQ schema/default port/capability validation, frame and
-confirm parsing, match metadata, managed API capabilities, and RabbitMQ-specific
-editor fields/phase.
+The final targeted container rerun passed after fixing HTTP startup to bind only
+HTTP/HTTP2/gRPC listeners. Previously HTTP startup also bound RabbitMQ's port,
+which adapter-only fixtures did not exercise. `TestProcessRabbitMQListener`
+now catches this through the CLI in the standard regression suite.
 
-```sh
-go test -race ./...
-go vet ./...
-go build ./...
-docker build -f deploy/docker/Dockerfile -t faultline:local .
-```
+One full-regression attempt timed out in the existing HTTP/2 request-truncate
+case (`TestBodyFaultMatrix/http2/request/truncate/mode0`). Three isolated reruns
+and the subsequent complete race suite passed; no HTTP truncate implementation
+was changed. This intermittent test observation is retained rather than counted
+as a RabbitMQ failure or omitted from the verification record.
 
-**PASS.** Full Go race regression, static checks, binary build, and Docker
-build passed. The Node editor/diff suite (13 tests) also passed.
+## Evidence limits
 
-## Remaining P27 checks
+- Exact `multiple` ACK grouping, tag-zero boundaries and frame ordering use
+  deterministic protocol tests; the broker is not required to batch ACKs on
+  every run. Publisher nack has a separate real-broker overflow fixture.
+- Cleanup assertions concern exercised sessions, joined goroutines and counters;
+  these tests are not a long-running load or memory benchmark.
+- TLS/TLS and plaintext/plaintext are the verified broker matrix. Mixed TLS
+  legs remain configurable but are not claimed as a broker acceptance result.
+- AMQP 1.0, Streams, clusters, mTLS, consumer fault injection and application
+  idempotency remain outside scope. Return correlation uses the documented
+  same-metadata FIFO policy; it is not a unique message identifier.
 
-- The current evidence covers the single-channel confirmed-publish path,
-  consumer forwarding, and TLS/TLS server-auth path. P27-AC1–AC3 and AC7 still
-  need their explicit multi-channel, heartbeat, `multiple`/nack and
-  certificate-rejection cases. Unit coverage now includes return parsing,
-  channel-state reset, complete-content flow creation and multiple-confirm
-  telemetry.
-- P27-AC2 still needs a persistent-connection integration fixture for
-  selectors, disable/reload and snapshot behavior. P27-AC5 still needs an
-  application reconnect/retry example that records duplicate or idempotent
-  outcome.
-- P27-AC6 needs real-broker concurrent-channel and delayed-frame ordering
-  evidence. P27-AC8 needs its complete disconnect/broker-close/shutdown bound
-  matrix. These gates remain required before P27 or Phase 10 is Done.
+P27-AC1–AC9 are complete for the pinned P26 contract.

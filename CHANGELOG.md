@@ -2,7 +2,26 @@
 
 Completed work following DEFINE → PLAN → BUILD → VERIFY → REVIEW.
 
+## 2026-09-22
+
+- Completed RabbitMQ Phase 10 acceptance: added persistent-channel/heartbeat,
+  selector/reload, retry/duplicate, nack, TLS rejection, recorder secrecy,
+  lifecycle and CLI/container tests. Fixed HTTP startup claiming RabbitMQ's
+  listener. Updated `plans/10-rabbitmq-adapter/` and `examples/rabbitmq/` with
+  evidence and scope limits. RabbitMQ Docker fixtures, non-root image runtime,
+  full Go race regression, vet/build, 13 Node tests, example validation and 112
+  local documentation links passed. An HTTP/2 truncate test timed out once;
+  three isolated reruns and the full rerun passed. Exact multiple-confirm
+  boundaries use deterministic protocol fixtures; mTLS/AMQP 1.0/Streams/clusters
+  and long-running load qualification remain outside scope.
+
 ## 2026-09-21
+
+- Fixed RabbitMQ upstream TLS handshake deadlines, flow cleanup after confirm
+  write failures, and prompt cancellation of delay/hold on disconnect. Added
+  lifecycle regression tests and updated Phase 10 evidence. Full Go race tests,
+  vet, build and pinned RabbitMQ Docker fixtures passed; remaining Phase 10
+  acceptance gates are unchanged.
 
 - Corrected RabbitMQ P27 flow correlation: flows start after complete content,
   channel closure resets reusable channel state, returned mandatory publishes do
