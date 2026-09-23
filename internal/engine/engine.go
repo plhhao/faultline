@@ -13,6 +13,7 @@ import (
 
 // Metadata is supplied by an adapter; Headers retains individual values without joining them.
 type Metadata struct {
+	Queue      string
 	Method     string
 	Service    string
 	Path       string
@@ -127,6 +128,9 @@ func (r *ruleState) selectAttempt(sequence uint64) bool {
 
 func matches(m config.Matcher, metadata Metadata) bool {
 	path, _, _ := strings.Cut(metadata.Path, "?")
+	if m.Queue != "" && m.Queue != metadata.Queue {
+		return false
+	}
 	if m.Service != "" && m.Service != metadata.Service {
 		return false
 	}

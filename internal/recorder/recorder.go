@@ -39,6 +39,7 @@ type Event struct {
 	CommitConfirmed  bool      `json:"commit_confirmed,omitempty"`
 	GRPCStatus       string    `json:"grpc_status,omitempty"`
 	UpstreamStatus   int       `json:"upstream_status,omitempty"`
+	Queue            string    `json:"queue,omitempty"`
 	Operation        string    `json:"operation,omitempty"`
 	Changed          bool      `json:"changed"`
 	Counters         *Counters `json:"counters,omitempty"`

@@ -2,6 +2,32 @@
 
 Completed work following DEFINE → PLAN → BUILD → VERIFY → REVIEW.
 
+## 2026-09-23
+
+- Completed Phase 11 BullMQ support. P28 pinned BullMQ 5.81.5, ioredis 5.8.2
+  and Redis 7.4.9 and recorded plaintext and TLS/ACL wire traces. P29 adds
+  `internal/proxy/bullmq/`, which applies delay, hold and close faults to
+  `after_job_add` replies of the pinned standard add-job script. It adds a
+  `queue` matcher, bounded RESP2 FIFO forwarding, and support in config, CLI,
+  the managed API/UI and events. Also added `examples/bullmq/`, public docs,
+  and unit, integration and container tests. P29-AC1–AC12 passed: full Go
+  race regression, vet, build, 14 Node UI tests, the BullMQ, RabbitMQ, MySQL
+  and PostgreSQL Docker fixtures, three container runtimes and 127 local
+  links. The existing HTTP container test failed once, with a
+  port-forward race, when run together with the other container tests; it
+  passed in isolation and in the final sequential run. Limitations: idle
+  connections close after `request_timeout`. Only the standard add script is
+  recognized. Transactions, RESP3, Pub/Sub, Cluster/Sentinel, Workers and
+  mTLS are unsupported.
+
+- Tightened Phase 11 plans in `plans/11-bullmq-adapter/`: added required
+  new/duplicate/error reply semantics, cold-script/retry flow and selector
+  lifecycle decisions, and bounded retry fixtures with independent observation.
+  Added P28-AC6–AC8 and P29-AC10–AC12 and updated the completion gate.
+  Content consistency review, eight local documentation links and
+  `git diff --check` passed. Documentation only; runtime tests were not run,
+  and P28/P29 remain Planned pending contract traces and implementation.
+
 ## 2026-09-22
 
 - Completed RabbitMQ Phase 10 acceptance: added persistent-channel/heartbeat,

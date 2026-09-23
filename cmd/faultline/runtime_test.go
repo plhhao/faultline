@@ -304,6 +304,26 @@ func TestProcessRabbitMQListener(t *testing.T) {
 	}
 }
 
+func TestProcessBullMQListener(t *testing.T) {
+	dir, err := os.MkdirTemp("/tmp", "faultline-bullmq-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	root, socket := filepath.Join(dir, "root.yaml"), filepath.Join(dir, "admin.sock")
+	addr := testAddress(t)
+	data := fmt.Sprintf("api_version: faultline/v1alpha1\nproxies:\n- id: jobs\n  protocol: bullmq\n  listen: %s\n  upstream: redis://127.0.0.1:6379\n", addr)
+	if err := os.WriteFile(root, []byte(data), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, stop := startProcess(t, root, socket, nil)
+	defer stop()
+	status := runtimeStatus(t, socket)
+	if !status.Ready || len(status.Listeners) != 1 || status.Listeners[0].ProxyID != "jobs" || status.Listeners[0].Address != addr {
+		t.Fatalf("BullMQ listener status: %+v", status)
+	}
+}
+
 func TestClosedStdoutKeepsAdminAvailable(t *testing.T) {
 	dir, err := os.MkdirTemp("/tmp", "faultline-pipe-")
 	if err != nil {

@@ -1,0 +1,16 @@
+api_version: faultline/v1alpha1
+runtime:
+  request_timeout: 30s
+  max_inflight_requests: 100
+proxies:
+  - id: jobs
+    protocol: bullmq
+    listen: 127.0.0.1:16379
+    upstream: redis://127.0.0.1:6379
+    rules:
+      # Lose the reply of the first confirmed job add on queue "orders".
+      - id: lost-job-add-reply
+        enabled: true
+        match: {queue: orders}
+        select: {nth: 1}
+        fault: {phase: after_job_add, action: close_connection}

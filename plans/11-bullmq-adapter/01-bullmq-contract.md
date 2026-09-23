@@ -1,6 +1,6 @@
 # P28 — BullMQ over Redis/RESP contract
 
-- Trạng thái: **Planned**.
+- Trạng thái: **Done**.
 - Phụ thuộc: nền config/control/recorder hiện có; không phụ thuộc Phase 8,
   Phase 10 hay RabbitMQ.
 - Nguồn: [phạm vi Phase 11](README.md), [đặc tả](../../specific.md).
@@ -37,6 +37,16 @@ P28 không hiện thực proxy. Kết quả là contract/version/trace thật ch
      không nhận diện chỉ forward, không match semantic rule.
    - Job tồn tại trên Redis không đồng nghĩa Worker đã nhận/xử lý job. Không
      suy ra business success hoặc idempotency từ reply proxy.
+   - Lập bảng reply → semantic outcome cho script đã pin: tạo job mới,
+     duplicate job ID, lỗi semantic và reply không nhận diện. Chốt duplicate có
+     reached `after_job_add` hay không; không coi mọi reply không phải Redis
+     `ERR` là tạo job mới. Nếu wire reply không phân biệt được new/duplicate,
+     contract phải ghi giới hạn và định nghĩa phase theo điều quan sát được.
+   - Chốt đơn vị flow cho `EVALSHA → NOSCRIPT → EVAL` và reconnect/retry:
+     thời điểm lấy snapshot, tăng `nth/every`, giữ hay lấy decision mới và kết
+     thúc recorder event. Nêu cách correlation dựa trên wire trace; không giả
+     định proxy nhận diện được cùng một lời gọi ứng dụng qua reconnect. Chốt
+     hành vi khi reload/enable/disable xảy ra giữa các bước của chuỗi.
 4. Chốt capability matrix. Mặc định đề xuất `delay`, `hold_response` và
    `close_connection` tại `after_job_add`. Không thêm response mutation, generic
    Redis command fault, Worker/QueueEvents fault hoặc `addBulk` nếu trace không
@@ -53,6 +63,11 @@ P28 không hiện thực proxy. Kết quả là contract/version/trace thật ch
    buffer, pending operation, hold duration, blocking connection, idle deadline,
    client disconnect, reconnect, malformed RESP, Redis close và shutdown. Proxy
    không tự reconnect hoặc retry job add.
+8. Pin retry fixture: timeout của caller, reconnect policy, tự gửi lại command
+   của client và retry tường minh của ứng dụng; ghi rõ lớp nào phát sinh từng
+   attempt. Giới hạn tổng thời gian và số attempt, dùng `nth=1` cho fault lần
+   đầu để retry có thể hoàn tất. Known/generated job ID có case riêng; giữ job
+   đủ lâu để quan sát độc lập, chốt cleanup và expected outcome theo trace.
 
 ## VERIFY — Tiêu chí nghiệm thu
 
@@ -63,6 +78,9 @@ P28 không hiện thực proxy. Kết quả là contract/version/trace thật ch
 | P28-AC3 | Trace persistent, pipelined/transaction (nếu client phát sinh), duplicate và blocking connections xác định FIFO/order/blast-radius policy. |
 | P28-AC4 | Matrix TLS/auth plaintext/TLS/mTLS từng leg, CA/hostname, ACL/password secrecy và các trường hợp từ chối được chốt; không downgrade. |
 | P28-AC5 | Queue-key metadata mapping, frame/session/hold/deadline bounds, malformed RESP, reconnect và shutdown policy có thể kiểm thử ở P29. |
+| P28-AC6 | Bảng reply → outcome phân biệt new/duplicate/error trong giới hạn quan sát được; policy `after_job_add` cho duplicate và reply không nhận diện được chốt bằng trace. |
+| P28-AC7 | Cold-script và reconnect/retry có định nghĩa flow, snapshot, `nth/every`, decision và event lifecycle; reload/enable/disable giữa chuỗi có expected outcome kiểm thử được. |
+| P28-AC8 | Fixture pin caller timeout, reconnect, client resend và application retry; có time/attempt bounds, fault lần đầu `nth=1`, known/generated job ID, retention và quan sát độc lập với expected outcomes. |
 
 Ghi contract hoàn chỉnh tại `bullmq-contract.md` khi P28 được thực hiện, gồm
 lệnh, pin versions, trace summary và giới hạn thật. Không chuyển P28 sang Done

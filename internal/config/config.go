@@ -10,6 +10,7 @@ import (
 
 const APIVersion = "faultline/v1alpha1"
 const (
+	AfterJobAdd           = "after_job_add"
 	AfterCommit           = "after_commit"
 	AfterPublishConfirm   = "after_publish_confirm"
 	BeforeUpstreamRequest = "before_upstream_request"
@@ -60,6 +61,7 @@ type Rule struct {
 }
 
 type Matcher struct {
+	Queue       string            `yaml:"queue"`
 	PathPattern string            `yaml:"path_pattern"`
 	Method      string            `yaml:"method"`
 	Service     string            `yaml:"service"`

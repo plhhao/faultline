@@ -18,6 +18,7 @@ gateway, load balancer, or general-purpose TCP/database proxy.
 | PostgreSQL | Explicit-transaction COMMIT acknowledgement delay, bounded hold, and disconnect faults. |
 | MySQL | The same explicit-COMMIT faults for MySQL 8.4.8. |
 | RabbitMQ | AMQP 0-9-1 publisher-confirm delay, bounded hold, and disconnect faults. |
+| BullMQ | Standard `Queue.add` reply delay, bounded hold, and disconnect faults over Redis 7.4 RESP2. |
 | Control | File configuration, local Unix-socket control, managed HTTPS UI/API, NDJSON events, and bounded counters. |
 
 Database faults model a COMMIT that the upstream has confirmed but whose
@@ -70,6 +71,7 @@ lost-response payment demonstration.
 - [Tester UI](docs/tester-ui.md)
 - [PostgreSQL and MySQL](docs/databases.md)
 - [RabbitMQ publisher-confirm example](examples/rabbitmq/README.md)
+- [BullMQ job-add example](examples/bullmq/README.md)
 - [Linux/systemd and Docker deployment](docs/deployment.md)
 
 ## Operational boundaries
@@ -85,6 +87,9 @@ lost-response payment demonstration.
   actions. MySQL supports plaintext/plaintext or TLS/TLS legs, not mixed TLS.
 - RabbitMQ supports only AMQP 0-9-1 publisher confirms on a direct broker;
   mTLS, AMQP 1.0, Streams, clusters, and payload matching are out of scope.
+- BullMQ supports only the pinned standard `Queue.add` script on standalone
+  Redis DB 0; it is not a generic Redis proxy. Transactions, RESP3, Pub/Sub,
+  Cluster/Sentinel, Workers and mTLS are out of scope.
 
 ## Development
 

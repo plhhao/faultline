@@ -1,6 +1,6 @@
 # Phase 11 — BullMQ qua Redis/RESP adapter
 
-Phạm vi: **Sau MVP**. Trạng thái: **Planned**.
+Phạm vi: **Sau MVP**. Trạng thái: **Done** (2026-09-23).
 
 ## DEFINE — Phạm vi dự kiến
 
@@ -37,8 +37,8 @@ semantics, payload editing, proxy retry, RabbitMQ và Kafka. Worker có thể ch
 
 | Thứ tự | Plan | Kết quả | Phụ thuộc | Trạng thái |
 | --- | --- | --- | --- | --- |
-| 1 | [P28](01-bullmq-contract.md) | Pin BullMQ/Redis/client, trace RESP và `Queue.add` contract | Nền config/control/recorder hiện có | Planned |
-| 2 | [P29](02-bullmq-adapter.md) | Adapter, config/API/UI, Node/Docker fixture và acceptance evidence | P28 Done | Planned |
+| 1 | [P28](01-bullmq-contract.md) | Pin BullMQ/Redis/client, trace RESP và `Queue.add` contract | Nền config/control/recorder hiện có | Done |
+| 2 | [P29](02-bullmq-adapter.md) | Adapter, config/API/UI, Node/Docker fixture và acceptance evidence | P28 Done | Done |
 
 ## Điều kiện hoàn tất phase
 
@@ -66,5 +66,13 @@ semantics, payload editing, proxy retry, RabbitMQ và Kafka. Worker có thể ch
    reorder pipeline response; contract phải ghi gate scope và backpressure.
 5. TLS/auth matrix, Redis ACL/password secrecy, frame/buffer, in-flight, hold,
    blocking command, timeout, reconnect, malformed RESP và shutdown bounds.
+6. Bảng reply → new/duplicate/error outcome trong giới hạn quan sát được;
+   duplicate job ID có reached `after_job_add` hay không, không suy ra tạo job
+   mới chỉ từ reply thành công.
+7. Đơn vị flow, snapshot, `nth/every`, decision và event lifecycle khi
+   `EVALSHA → NOSCRIPT → EVAL`, reconnect/retry và reload/enable/disable giữa chuỗi.
+8. Fixture pin caller timeout, reconnect, client resend và application retry;
+   time/attempt bounds, fault lần đầu `nth=1`, known/generated job ID và giữ job
+   cho quan sát độc lập trước cleanup.
 
 Xem [lộ trình và quy tắc thực hiện](../README.md).

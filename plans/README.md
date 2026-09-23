@@ -1,10 +1,10 @@
 # Kế hoạch hiện thực Faultline
 
-Nguồn yêu cầu: [specific.md](../specific.md). **Phase 01–05 đã Done**: core, [cấu hình nhiều file](01-core/04-multi-file-config.md), HTTP/HTTPS forwarding, năm fault action, admin/recorder, giới hạn tài nguyên, payment demo và binary/Docker. [AC1–AC24 đã có bằng chứng](05-mvp-delivery/acceptance.md) trên macOS arm64 và Docker/OrbStack Linux arm64. **Phase 06 đã Done**: HTTP/2, gRPC unary, mTLS tùy chọn và truncate/throttle hai chiều; xem [15 AC và kết quả kiểm chứng](06-protocol-extensions/acceptance.md). Phase 07 Done: P19/P20/P20a hoàn tất, người dùng xác nhận mọi case hướng dẫn tester PASS ngày 2026-09-16; phase 08 Deferred; phase 09 In progress (chờ manual UI); phase 10 Done cho RabbitMQ; phase 11 Planned cho BullMQ.
+Nguồn yêu cầu: [specific.md](../specific.md). **Phase 01–05 đã Done**: core, [cấu hình nhiều file](01-core/04-multi-file-config.md), HTTP/HTTPS forwarding, năm fault action, admin/recorder, giới hạn tài nguyên, payment demo và binary/Docker. [AC1–AC24 đã có bằng chứng](05-mvp-delivery/acceptance.md) trên macOS arm64 và Docker/OrbStack Linux arm64. **Phase 06 đã Done**: HTTP/2, gRPC unary, mTLS tùy chọn và truncate/throttle hai chiều; xem [15 AC và kết quả kiểm chứng](06-protocol-extensions/acceptance.md). Phase 07 Done: P19/P20/P20a hoàn tất, người dùng xác nhận mọi case hướng dẫn tester PASS ngày 2026-09-16; phase 08 Deferred; phase 09 In progress (chờ manual UI); phase 10 Done cho RabbitMQ; phase 11 Done cho BullMQ.
 
 ## Các phase
 
-Phase 01–05 chia nhỏ giai đoạn A trong mục 13 của đặc tả. Phase 06–11 tương ứng B–E và các adapter sau MVP; phase 06 Done, phase 07 Done, phase 08 Deferred, phase 09 In progress, phase 10 Done, phase 11 Planned. Thứ tự sau MVP có thể đổi theo nhu cầu; UI không phải đợi hỗ trợ thêm protocol.
+Phase 01–05 chia nhỏ giai đoạn A trong mục 13 của đặc tả. Phase 06–11 tương ứng B–E và các adapter sau MVP; phase 06 Done, phase 07 Done, phase 08 Deferred, phase 09 In progress, phase 10 Done, phase 11 Done. Thứ tự sau MVP có thể đổi theo nhu cầu; UI không phải đợi hỗ trợ thêm protocol.
 
 | Phase | Phạm vi | Kết quả | Số plan |
 | --- | --- | --- | --- |
@@ -28,7 +28,7 @@ Phase 01–05 chia nhỏ giai đoạn A trong mục 13 của đặc tả. Phase 
 - P01–P15 và P01a là kế hoạch cụ thể cho MVP; P16–P18 đã Done trong phase 06; P19 đã hiện thực API, config lưu bền và đăng nhập độc lập; P20 đã nghiệm thu UI nhúng theo [hướng dẫn tester](../examples/tester/README.md); [P20a](07-tester-experience/03-path-pattern.md) đã Done path pattern và nghiệm thu UI; P21–P22 tiếp tục Deferred; P23 Done; P24 đã hiện thực PostgreSQL và kiểm thử tự động, còn chờ manual UI; xem [acceptance](09-semantic-adapters/acceptance.md).
 - [P25](09-semantic-adapters/03-mysql-adapter.md) Done: MySQL 8.4.8 + fixture Go, after_commit, automated CLI/API/UI và Docker runtime đã kiểm chứng; không phụ thuộc Phase 8.
 - P26 RabbitMQ Done: RabbitMQ 4.2.9/AMQP client pin, contract, plaintext and TLS/TLS broker evidence. P27 Done: [P27-AC1–AC9](10-rabbitmq-adapter/rabbitmq-acceptance.md) verified 2026-09-22, including multi-channel/heartbeat, retry, selector/reload, TLS rejection, lifecycle and CLI/container runtime; full Go/UI regression passes. Không suy diễn AMQP 1.0, RabbitMQ Streams, cluster/federation hay Kafka/BullMQ từ adapter này.
-- Phase 11 bắt đầu P28 để pin BullMQ/Redis/client và trace `Queue.add` trước code. P29 chỉ thực hiện sau khi P28 Done; adapter là semantic slice BullMQ trên Redis/RESP, không phải generic Redis proxy hoặc hỗ trợ mọi BullMQ feature.
+- Phase 11 Done: [P28](11-bullmq-adapter/01-bullmq-contract.md) pin BullMQ 5.81.5/ioredis 5.8.2/Redis 7.4.9 và trace `Queue.add`; [P29-AC1–AC12](11-bullmq-adapter/bullmq-acceptance.md) verified 2026-09-23 với plaintext, TLS/TLS + ACL, retry known/generated ID, FIFO/blocking pass-through và container runtime. Adapter là semantic slice BullMQ trên Redis/RESP2, không phải generic Redis proxy; không hỗ trợ transaction, RESP3, Pub/Sub, Cluster/Sentinel, Worker hay mTLS.
 - Tận dụng cấu trúc package hiện tại. Chỉ thêm package/interface khi implementation cần; ưu tiên helper có trách nhiệm rõ, không tạo sẵn common/utils hoặc framework plugin.
 - Schema, CLI transport và defaults còn là đề xuất trong đặc tả: chốt ở plan sở hữu, ghi quyết định và cập nhật tài liệu liên quan nếu thay đổi hợp đồng.
 

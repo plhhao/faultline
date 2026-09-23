@@ -14,6 +14,7 @@ application responds.
 | Use the HTTPS administration UI | [Tester UI](tester-ui.md) |
 | Test a lost COMMIT acknowledgement | [PostgreSQL and MySQL](databases.md) |
 | Test a lost RabbitMQ publisher confirm | [RabbitMQ example](../examples/rabbitmq/README.md) |
+| Test a lost BullMQ `Queue.add` reply | [BullMQ example](../examples/bullmq/README.md) |
 
 Runnable demonstrations live under `examples/`. Implementation plans and
 detailed verification evidence live under `plans/`.

@@ -1,0 +1,9 @@
+{
+  "name": "faultline-bullmq-fixture",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "bullmq": "5.81.5",
+    "ioredis": "5.8.2"
+  }
+}

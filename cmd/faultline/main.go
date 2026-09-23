@@ -17,6 +17,7 @@ import (
 	"github.com/plhhao/faultline/internal/control/admin"
 	"github.com/plhhao/faultline/internal/control/remote"
 	"github.com/plhhao/faultline/internal/fault"
+	"github.com/plhhao/faultline/internal/proxy/bullmq"
 	httpproxy "github.com/plhhao/faultline/internal/proxy/http"
 	"github.com/plhhao/faultline/internal/proxy/mysql"
 	"github.com/plhhao/faultline/internal/proxy/postgresql"
@@ -169,8 +170,13 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	defer rabbitServer.Close()
+	bullServer, err := bullmq.Start(service, records)
+	if err != nil {
+		return err
+	}
+	defer bullServer.Close()
 	listeners := func() []control.ListenerStatus {
-		return append(append(append(server.Listeners(), pgServer.Listeners()...), myServer.Listeners()...), rabbitServer.Listeners()...)
+		return append(append(append(append(server.Listeners(), pgServer.Listeners()...), myServer.Listeners()...), rabbitServer.Listeners()...), bullServer.Listeners()...)
 	}
 	management, err := admin.Start(socket, service, records, listeners, managed != nil)
 	if err != nil {
@@ -183,6 +189,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		myServer.Close()
 		pgServer.Close()
 		rabbitServer.Close()
+		bullServer.Close()
 		server.Shutdown(drain)
 		counts := records.Counters()
 		records.Record(recorder.Event{Info: service.Acquire().Info(), Type: "control", Operation: "shutdown", Outcome: "stopped", Counters: &counts})
@@ -202,6 +209,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	case <-ctx.Done():
 		return nil
 	case err := <-myServer.Errors():
+		return err
+	case err := <-bullServer.Errors():
 		return err
 	case err := <-rabbitServer.Errors():
 		return err

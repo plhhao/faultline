@@ -38,6 +38,7 @@ field.
 | `service` | Exact gRPC service. |
 | `exchange` | Exact AMQP 0-9-1 publish exchange; RabbitMQ only. |
 | `routing_key` | Exact AMQP 0-9-1 publish routing key; RabbitMQ only. |
+| `queue` | Exact BullMQ queue name; BullMQ only. |
 
 `path_pattern: /payment/:id` matches `/payment/42` and `/payment/history`, but
 not `/payment/42/items`. Put an exact `/payment/history` rule before the pattern
@@ -79,6 +80,14 @@ RabbitMQ accepts `exchange` and/or `routing_key`, phase
 `after_publish_confirm`, and the same three actions. The phase means RabbitMQ
 has sent a publisher confirm to Faultline; it does not mean a consumer has
 received or processed the message. See [the RabbitMQ example](../examples/rabbitmq/README.md).
+
+BullMQ (`protocol: bullmq`, upstream `redis://` or `rediss://`) accepts an
+optional `queue`, phase `after_job_add`, and the same three actions. The phase
+means Redis returned a job ID for the standard add-job script; an existing
+custom job ID returns the same reply, so it does not prove a new job was
+created or processed. Selectors count script attempts: a script-cache miss
+followed by the client's fallback counts twice. See
+[the BullMQ example](../examples/bullmq/README.md).
 
 ## Reload or restart
 
