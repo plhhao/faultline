@@ -22,3 +22,20 @@ users.json
 
 # OS metadata
 .DS_Store
+
+# Generated files from language-specific examples
+/examples/**/node_modules/
+/examples/**/__pycache__/
+/examples/**/*.py[cod]
+/examples/**/.venv/
+/examples/**/venv/
+/examples/**/.pytest_cache/
+/examples/**/.mypy_cache/
+/examples/**/.ruff_cache/
+/examples/**/*.egg-info/
+/examples/**/.gradle/
+/examples/**/*.class
+/examples/**/target/
+/examples/**/build/
+/examples/**/dist/
+/examples/**/coverage/

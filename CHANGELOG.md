@@ -2,6 +2,10 @@
 
 Completed work following DEFINE → PLAN → BUILD → VERIFY → REVIEW.
 
+## 2026-09-24
+
+- Extended `.gitignore` for generated Python, Java, Rust and JavaScript example files under `examples/`, including `node_modules`. Verified representative generated paths are ignored, source and lockfiles remain visible, no tracked files became ignored, and `git diff --check` passed. No runtime tests were needed.
+
 ## 2026-09-21
 
 - Rewrote the root README as an English GitHub landing page with an executable
