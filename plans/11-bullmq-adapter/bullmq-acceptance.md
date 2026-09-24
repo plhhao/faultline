@@ -7,6 +7,16 @@ Redis 7.4.9 (`redis:7.4.9-alpine@sha256:6ab0b6e7…61ab99`).
 
 ## Commands
 
+2026-09-24 follow-up: fixed prompt fault cancellation when Redis closes after
+queued replies, rejected noncanonical RESP length headers before selector
+accounting, and waited for an actual PING reply on Docker-published Redis ports.
+`TestUpstreamCloseCancelsFaultBeforeDeadline`, `TestFinalRepliesDeliveredBeforeUpstreamEOF`,
+`TestReplyReadAheadBound`, `TestMalformedScriptDoesNotConsumeSelector`, and
+`TestRESPBoundsAndRoundTrip` cover the regressions. The changed tests passed
+20 repeated race runs; `go test -race -count=1 ./...`, BullMQ Redis integration
+with race detection, BullMQ container runtime, `go vet ./...`, and `go build ./...`
+passed. Reply read-ahead is capped at 1 MiB of queued wire bytes.
+
 | Command | Result |
 | --- | --- |
 | `rtk proxy go vet ./...` | PASS |

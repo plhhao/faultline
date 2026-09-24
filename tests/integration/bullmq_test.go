@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -96,7 +98,67 @@ func redisFixture(t *testing.T, dir, conf string) string {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	return strings.Fields(docker("port", id, "6379/tcp"))[0]
+	host := strings.Fields(docker("port", id, "6379/tcp"))[0]
+	var secure *tls.Config
+	if strings.Contains(conf, "tls-port 6379") {
+		data, err := os.ReadFile(filepath.Join(dir, "cert.pem"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		roots := x509.NewCertPool()
+		if !roots.AppendCertsFromPEM(data) {
+			t.Fatal("invalid fixture CA")
+		}
+		secure = &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots, ServerName: "localhost"}
+	}
+	waitRedisReady(t, host, secure, strings.Contains(conf, "user fixture on"), until)
+	return host
+}
+
+// Probe the published port: a Redis log line does not establish Docker forwarding readiness.
+func waitRedisReady(t *testing.T, host string, secure *tls.Config, auth bool, until time.Time) {
+	t.Helper()
+	probe := func() error {
+		dialer := &net.Dialer{Timeout: time.Second}
+		var conn net.Conn
+		var err error
+		if secure != nil {
+			conn, err = tls.DialWithDialer(dialer, "tcp", host, secure)
+		} else {
+			conn, err = dialer.Dial("tcp", host)
+		}
+		if err != nil {
+			return err
+		}
+		defer conn.Close()
+		if err := conn.SetDeadline(time.Now().Add(time.Second)); err != nil {
+			return err
+		}
+		r := bufio.NewReader(conn)
+		if auth {
+			if _, err := conn.Write([]byte("*3\r\n$4\r\nAUTH\r\n$7\r\nfixture\r\n$21\r\nfixture-only-password\r\n")); err != nil {
+				return err
+			}
+			if line, err := r.ReadString('\n'); err != nil || line != "+OK\r\n" {
+				return fmt.Errorf("fixture authentication not ready")
+			}
+		}
+		if _, err := conn.Write([]byte("*1\r\n$4\r\nPING\r\n")); err != nil {
+			return err
+		}
+		if line, err := r.ReadString('\n'); err != nil || line != "+PONG\r\n" {
+			return fmt.Errorf("fixture PING not ready")
+		}
+		return nil
+	}
+	for {
+		if err := probe(); err == nil {
+			return
+		} else if time.Now().After(until) {
+			t.Fatalf("published Redis port not ready: %v", err)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
 }
 
 func bullStart(t *testing.T, source string) (*control.Service, *recorder.Recorder, *lockedBuffer) {
@@ -297,6 +359,7 @@ func TestBullMQContainerRuntime(t *testing.T) {
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
+	waitRedisReady(t, listen, nil, false, until)
 	docker("exec", id, "/faultline", "enable")
 	result := bullRun(t, listen, redis, "RETRY=1", "QUEUE=container")
 	if result.First.OK || !result.Retry.OK || result.Waiting != 2 {

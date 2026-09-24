@@ -2,6 +2,17 @@
 
 Completed work following DEFINE → PLAN → BUILD → VERIFY → REVIEW.
 
+## 2026-09-24
+
+- Fixed Phase 11 BullMQ reply handling in `internal/proxy/bullmq/`: Redis EOF
+  now cancels an active delay/hold promptly while preserving FIFO replies, with
+  1 MiB bounded reply read-ahead. Reject noncanonical RESP lengths before
+  forwarding or selector accounting. The BullMQ Docker fixture now probes its
+  published port with PING before use. Updated the Phase 11 contract and
+  acceptance evidence. Focused race regressions passed 20 runs; full Go race
+  tests, BullMQ Redis and container fixtures, vet, build, gofmt and diff checks
+  passed. The existing `.gitignore` edit was left unchanged.
+
 ## 2026-09-23
 
 - Completed Phase 11 BullMQ support. P28 pinned BullMQ 5.81.5, ioredis 5.8.2

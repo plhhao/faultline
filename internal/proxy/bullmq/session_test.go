@@ -25,6 +25,7 @@ type harness struct {
 	output          bytes.Buffer
 	done            chan struct{}
 	cancel          context.CancelFunc
+	pending         <-chan struct{}
 }
 
 func startSession(t *testing.T, selector, action string) *harness {
@@ -53,6 +54,7 @@ func startDocument(t *testing.T, doc *config.Document) *harness {
 	ctx, cancel := context.WithCancel(context.Background())
 	h.cancel = cancel
 	srv := &Server{service: h.service, records: h.records, runtime: doc.Config().Runtime, pending: make(chan struct{}, 20)}
+	h.pending = srv.pending
 	s := &session{server: srv, endpoint: &endpoint{proxy: doc.Config().Proxies[0]}, ctx: ctx, client: c, upstream: u}
 	go func() { defer close(h.done); s.exchange() }()
 	t.Cleanup(func() { h.close(t) })
@@ -71,6 +73,9 @@ func (h *harness) close(t *testing.T) {
 	}
 	if err := h.records.Close(context.Background()); err != nil {
 		t.Fatal(err)
+	}
+	if len(h.pending) != 0 {
+		t.Fatalf("leaked pending slots: %d", len(h.pending))
 	}
 	if c := h.records.Counters(); c.Active != 0 || c.ActiveFaults != 0 {
 		t.Fatalf("leaked counters: %+v", c)
@@ -294,5 +299,138 @@ func TestUpstreamReplyTimeout(t *testing.T) {
 	}
 	if e := h.terminal(t); len(e) != 1 || e[0].Reached || !e[0].NotReached {
 		t.Fatalf("events: %+v", e)
+	}
+}
+
+func TestUpstreamCloseCancelsFaultBeforeDeadline(t *testing.T) {
+	for _, action := range []string{"action: hold_response, max_duration: 4s", "action: delay, duration: 4s"} {
+		t.Run(action, func(t *testing.T) {
+			source := strings.Replace(fmt.Sprintf(testConfig, "nth: 1", action), "request_timeout: 500ms", "request_timeout: 5s", 1)
+			doc, err := config.Parse([]byte(source), "/tmp/bullmq.yaml")
+			if err != nil {
+				t.Fatal(err)
+			}
+			h := startDocument(t, doc)
+			delivered := make(chan struct{})
+			go func() {
+				r := bufio.NewReader(h.backend)
+				_, _ = readFrame(r)
+				_, _ = readFrame(r)
+				_ = writeAll(h.backend, []byte("$3\r\none\r\n$3\r\ntwo\r\n"))
+				close(delivered)
+			}()
+			if err := writeAll(h.client, append(encode(addArgs("orders")...), encode(addArgs("orders")...)...)); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case <-delivered:
+			case <-time.After(time.Second):
+				t.Fatal("reply read-ahead stalled")
+			}
+			until := time.Now().Add(time.Second)
+			for h.records.Counters().Applied == 0 && time.Now().Before(until) {
+				time.Sleep(time.Millisecond)
+			}
+			if h.records.Counters().Applied != 1 {
+				t.Fatal("fault not reached")
+			}
+			h.backend.Close()
+			select {
+			case <-h.done:
+			case <-time.After(500 * time.Millisecond):
+				t.Fatal("upstream EOF did not promptly cancel the fault")
+			}
+			events := h.terminal(t)
+			if len(events) != 2 || events[0].Outcome != "job_add_reply_lost" || events[1].Reached {
+				t.Fatalf("terminal events: %+v", events)
+			}
+		})
+	}
+}
+
+func TestFinalRepliesDeliveredBeforeUpstreamEOF(t *testing.T) {
+	h := startSession(t, "probability: 0", "action: close_connection")
+	go func() {
+		r := bufio.NewReader(h.backend)
+		_, _ = readFrame(r)
+		_, _ = readFrame(r)
+		_ = writeAll(h.backend, []byte("$3\r\njob\r\n+OK\r\n"))
+		h.backend.Close()
+	}()
+	if err := writeAll(h.client, append(encode(addArgs("orders")...), encode("QUIT")...)); err != nil {
+		t.Fatal(err)
+	}
+	r := bufio.NewReader(h.client)
+	for _, want := range []string{"job", "OK"} {
+		f, err := readFrame(r)
+		if err != nil || string(f.value) != want {
+			t.Fatalf("final reply %q: %v", f.value, err)
+		}
+	}
+	select {
+	case <-h.done:
+	case <-time.After(time.Second):
+		t.Fatal("upstream EOF did not end session")
+	}
+	if events := h.terminal(t); len(events) != 1 || events[0].Outcome != "job_add_confirmed" {
+		t.Fatalf("events: %+v", events)
+	}
+}
+
+func TestMalformedScriptDoesNotConsumeSelector(t *testing.T) {
+	for _, header := range []string{"*+15", "*015"} {
+		t.Run(header, func(t *testing.T) {
+			h := startSession(t, "nth: 1", "action: close_connection")
+			wire := strings.Replace(string(encode(addArgs("orders")...)), "*15", header, 1)
+			_ = writeAll(h.client, []byte(wire))
+			_ = h.backend.SetReadDeadline(time.Now().Add(time.Second))
+			var b [1]byte
+			if n, err := h.backend.Read(b[:]); n != 0 || err == nil {
+				t.Fatal("malformed script forwarded")
+			}
+			if events := h.terminal(t); len(events) != 0 {
+				t.Fatalf("malformed script created flows: %+v", events)
+			}
+			counts, _ := h.service.Acquire().Counters("q", "chosen")
+			if counts.Eligible != 0 {
+				t.Fatalf("malformed script consumed selector: %+v", counts)
+			}
+		})
+	}
+}
+
+func TestReplyReadAheadBound(t *testing.T) {
+	source := strings.Replace(fmt.Sprintf(testConfig, "nth: 1", "action: hold_response, max_duration: 4s"), "request_timeout: 500ms", "request_timeout: 5s", 1)
+	doc, err := config.Parse([]byte(source), "/tmp/bullmq.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := startDocument(t, doc)
+	go func() {
+		r := bufio.NewReader(h.backend)
+		for i := 0; i < 3; i++ {
+			_, _ = readFrame(r)
+		}
+		_ = writeAll(h.backend, []byte("$3\r\njob\r\n"))
+		until := time.Now().Add(time.Second)
+		for h.records.Counters().Applied == 0 && time.Now().Before(until) {
+			time.Sleep(time.Millisecond)
+		}
+		reply := []byte(fmt.Sprintf("$%d\r\n%s\r\n", maxFrame/2, strings.Repeat("x", maxFrame/2)))
+		_ = writeAll(h.backend, reply)
+		_ = writeAll(h.backend, reply)
+	}()
+	for i := 0; i < 3; i++ {
+		if err := writeAll(h.client, encode(addArgs("orders")...)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	select {
+	case <-h.done:
+	case <-time.After(time.Second):
+		t.Fatal("reply byte limit did not close session")
+	}
+	if events := h.terminal(t); len(events) != 3 {
+		t.Fatalf("unfinished flows: %+v", events)
 	}
 }

@@ -76,7 +76,9 @@ Maximum frame 1 MiB (including encoded framing), depth 8, 4096 children per
 array, 8192 nodes per frame, 128 pending commands per connection. Runtime
 max_inflight_requests also bounds total sessions and global pending commands.
 Overflow/malformed/unsupported framing closes both legs without forwarding the
-invalid frame. No unbounded payload buffering. request_timeout bounds handshake,
+invalid frame. Reply read-ahead is bounded by the pending-command count and
+1 MiB of queued encoded replies; exceeding either limit closes the connection.
+No unbounded payload buffering. request_timeout bounds handshake,
 each complete frame read/write, idle wait, pending reply lifetime and faults.
 Blocking commands are only transport pass-through and must complete within that
 deadline; they are not Worker semantics.
@@ -86,7 +88,8 @@ delivery for that connection; later requests may already execute at Redis, but
 later replies cannot overtake it. Pending capacity is bounded; exhaustion closes
 the connection. Close/hold expiry affects every outstanding operation on that
 connection. Separate connections remain independent. Client disconnect, Redis
-close and shutdown cancel pending work and finish all started events. Proxy
+close and shutdown cancel pending work and finish all started events, including
+an active delay or hold when Redis closes after sending its replies. Proxy
 never reconnects or retries.
 
 Reject MULTI/EXEC/DISCARD/WATCH, HELLO, Pub/Sub subscription commands, MONITOR,

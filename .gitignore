@@ -22,3 +22,4 @@ users.json
 
 # OS metadata
 .DS_Store
+**/node_modules/

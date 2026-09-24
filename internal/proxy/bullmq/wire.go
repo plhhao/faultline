@@ -66,7 +66,7 @@ func readFrame(r *bufio.Reader) (frame, error) {
 			}
 		case '$', '*':
 			n, err := strconv.ParseInt(string(f.value), 10, 64)
-			if err != nil || n < -1 {
+			if err != nil || n < -1 || strconv.FormatInt(n, 10) != string(f.value) {
 				return frame{}, errProtocol
 			}
 			f.value = nil

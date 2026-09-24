@@ -32,7 +32,7 @@ func TestRESPBoundsAndRoundTrip(t *testing.T) {
 			t.Fatalf("round trip %q: %v", wire, err)
 		}
 	}
-	for _, wire := range []string{"+bad\n", "$-2\r\n", "$1048576\r\n", "*4097\r\n", strings.Repeat("*1\r\n", 10) + "+ok\r\n", ":overflow9999999999999999999999\r\n", "$2\r\nx\r\n", ">1\r\n+push\r\n", "+" + strings.Repeat("x", maxFrame), "*4096\r\n" + strings.Repeat("*2\r\n:1\r\n:1\r\n", 4096)} {
+	for _, wire := range []string{"+bad\n", "*+1\r\n$4\r\nPING\r\n", "*01\r\n$4\r\nPING\r\n", "*1\r\n$+4\r\nPING\r\n", "$-0\r\n\r\n", "$00\r\n\r\n", "$-2\r\n", "$1048576\r\n", "*4097\r\n", strings.Repeat("*1\r\n", 10) + "+ok\r\n", ":overflow9999999999999999999999\r\n", "$2\r\nx\r\n", ">1\r\n+push\r\n", "+" + strings.Repeat("x", maxFrame), "*4096\r\n" + strings.Repeat("*2\r\n:1\r\n:1\r\n", 4096)} {
 		if _, err := readFrame(bufio.NewReader(strings.NewReader(wire))); err == nil {
 			t.Fatalf("accepted malformed/oversized frame (%d bytes)", len(wire))
 		}
