@@ -17,6 +17,7 @@ gateway, load balancer, or general-purpose TCP/database proxy.
 | gRPC | Unary gRPC over HTTP/2 with service, method, and metadata matching. Streaming is out of scope. |
 | PostgreSQL | Explicit-transaction COMMIT acknowledgement delay, bounded hold, and disconnect faults. |
 | MySQL | The same explicit-COMMIT faults for MySQL 8.4.8. |
+| TCP/S3 | TLS passthrough with connection, hold, throttle, and dial-delay faults. Local TLS and opt-in live S3 acceptance verified. |
 | Control | File configuration, local Unix-socket control, managed HTTPS UI/API, NDJSON events, and bounded counters. |
 
 Database faults model a COMMIT that the upstream has confirmed but whose
@@ -68,6 +69,7 @@ lost-response payment demonstration.
 - [Runtime operations](docs/operations.md)
 - [Tester UI](docs/tester-ui.md)
 - [PostgreSQL and MySQL](docs/databases.md)
+- [S3/TCP example and opt-in live S3 acceptance](examples/s3/README.md)
 - [Linux/systemd and Docker deployment](docs/deployment.md)
 
 ## Operational boundaries

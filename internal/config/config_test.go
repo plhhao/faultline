@@ -81,7 +81,7 @@ func TestStrictValidation(t *testing.T) {
 		{"nth overflow", "probability: 0.2", "nth: 18446744073709551616", "proxies[0].rules[0].select.nth"},
 		{"null", "seed: 42", "seed: null", "seed"},
 		{"nonempty ID", "id: payment", "id: ''", "proxies[0].id"},
-		{"protocol", "protocol: http1", "protocol: tcp", "proxies[0].protocol"},
+		{"protocol", "protocol: http1", "protocol: bogus", "proxies[0].protocol"},
 		{"listener", "listen: :8080", "listen: localhost", "proxies[0].listen"},
 		{"listener port", "listen: :8080", "listen: :0", "proxies[0].listen"},
 		{"listener host", "listen: :8080", "listen: 'bad host:80'", "proxies[0].listen"},

@@ -30,7 +30,7 @@ Số plan giữ nguyên để bảo toàn tham chiếu; triển khai theo phụ 
 ## Phần tiếp tục Deferred
 
 - gRPC client/server/bidirectional streaming: đợt riêng với tiêu chí lifecycle, flow control và tài nguyên cho stream dài; chưa cam kết chỉ vì unary đã pass.
-- TCP adapter, gRPC-Web, fault đóng toàn HTTP/2 connection, TCP reset/half-close, weighted selection và action chaining.
+- gRPC-Web, fault đóng toàn HTTP/2 connection, TCP reset/half-close, weighted selection và action chaining. TCP/TLS passthrough cho S3 đã được lên [plan Phase 10](../10-s3-tcp/README.md), chưa hiện thực.
 - Hot reload certificate, truyền danh tính certificate gốc của app tới upstream, policy danh tính SAN/SPIFFE và quản lý cấp/thu hồi certificate tự động.
 
 ## Tiến độ

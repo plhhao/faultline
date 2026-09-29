@@ -9,3 +9,9 @@
 !deploy/
 !deploy/docker/
 !deploy/docker/Dockerfile
+!examples/
+!examples/s3/
+!examples/s3/fixture/
+!examples/s3/fixture/**
+!examples/s3/Dockerfile.fixture
+examples/s3/.env*

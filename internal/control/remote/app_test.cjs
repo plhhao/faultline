@@ -23,9 +23,9 @@ function editor(protocol) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, "ui/app.js"), "utf8"), context);
   vm.runInContext(`
     session = {role:"editor"};
-    caps = {actions:{mysql:["delay","hold_response","close_connection"],postgresql:["delay","hold_response","close_connection"],http1:["delay","hold_response","close_connection","respond"]}, phases:["before_upstream_request","after_upstream_headers"], protocol_phases:{mysql:["after_commit"],postgresql:["after_commit"]}, selectors:["Probability","Nth","Every"]};
+    caps = {actions:{mysql:["delay","hold_response","close_connection"],postgresql:["delay","hold_response","close_connection"],http1:["delay","hold_response","close_connection","respond"],tcp:["close_connection","hold","throttle","delay_connect"]}, phases:["before_upstream_request","after_upstream_headers"], protocol_phases:{mysql:["after_commit"],postgresql:["after_commit"],tcp:["on_connect","on_transfer"]}, selectors:["Probability","Nth","Every"]};
     active = {proxies:[{id:"proxy",protocol:${JSON.stringify(protocol)},listen:"local",upstream:"upstream"}]};
-    draft = {proxies:[{id:"proxy",rules:[{ID:"r",Enabled:true,Match:{},Select:{Probability:1},Fault:defaultFault("delay",${JSON.stringify(protocol)})}]}]};
+    draft = {proxies:[{id:"proxy",rules:[{ID:"r",Enabled:true,Match:{},Select:{Probability:1},Fault:defaultFault(${protocol === "tcp" ? '"close_connection"' : '"delay"'},${JSON.stringify(protocol)})}]}]};
     renderRules();
   `, context);
   function texts(el) { return [el.textContent, ...el.children.flatMap(texts)].filter(Boolean); }
@@ -59,6 +59,15 @@ test("HTTP editor retains its own matching and phases", () => {
   assert(!labels.includes("after_commit"));
 });
 
+test("TCP editor exposes connection faults without HTTP matching", () => {
+  const {context, labels} = editor("tcp");
+  assert(labels.includes("on_transfer"));
+  assert(labels.includes("Trigger"));
+  assert(!labels.some(text => text.startsWith("HTTP method") || text === "Path match" || text.startsWith("Headers /")));
+  assert.equal(vm.runInContext('defaultFault("delay_connect","tcp").Phase', context), "on_connect");
+  assert.equal(vm.runInContext('defaultFault("hold","tcp").Direction', context), "upstream_to_client");
+});
+
 for (const changed of [false, true]) {
   test(`Login refreshes proxy list unless unsaved edits exist (${changed})`, async () => {
     const {context} = editor("postgresql");
@@ -81,20 +90,21 @@ for (const changed of [false, true]) {
   });
 }
 
- test("Switching MySQL, PostgreSQL, HTTP and gRPC preserves drafts and protocol fields", () => {
+ test("Switching MySQL, PostgreSQL, HTTP, gRPC and TCP preserves drafts and protocol fields", () => {
    const {context, labelsNow} = editor("mysql");
    vm.runInContext(`
      caps.actions.grpc = ["delay","hold_response","truncate","throttle"];
-     active.proxies = ["mysql","postgresql","http1","grpc"].map(protocol => ({id:protocol,protocol,listen:"local",upstream:"upstream"}));
-     draft.proxies = active.proxies.map(p => ({id:p.id,rules:[{ID:"r",Enabled:true,Match:{},Select:{Nth:2},Fault:defaultFault("delay",p.protocol)}]}));
+     active.proxies = ["mysql","postgresql","http1","grpc","tcp"].map(protocol => ({id:protocol,protocol,listen:"local",upstream:"upstream"}));
+     draft.proxies = active.proxies.map(p => ({id:p.id,rules:[{ID:"r",Enabled:true,Match:{},Select:{Nth:2},Fault:defaultFault(p.protocol === "tcp" ? "close_connection" : "delay",p.protocol)}]}));
      draft.proxies[0].rules[0].Fault.Duration = 300000000;
    `, context);
-   for (const index of [0, 1, 2, 3, 0]) {
+   for (const index of [0, 1, 2, 3, 4, 0]) {
      vm.runInContext(`selected=${index}; renderRules(); showDiff();`, context);
      const labels = labelsNow();
      assert.equal(labels.includes("after_commit"), index < 2);
-     assert.equal(labels.includes("Path match"), index >= 2);
+     assert.equal(labels.includes("Path match"), index === 2 || index === 3);
      assert.equal(labels.includes("gRPC service (optional)"), index === 3);
+     assert.equal(labels.includes("on_transfer"), index === 4);
    }
    assert.equal(vm.runInContext("draft.proxies[0].rules[0].Fault.Duration", context), 300000000);
  });

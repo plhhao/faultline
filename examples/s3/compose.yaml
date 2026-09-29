@@ -1,0 +1,54 @@
+services:
+  config:
+    image: alpine:3.21
+    environment:
+      S3_TEST_HOST: ${S3_TEST_HOST:?set S3_TEST_HOST in .env}
+    volumes:
+      - configs:/configs
+      - ./generate-configs.sh:/generate-configs.sh:ro
+    command: ["sh", "/generate-configs.sh"]
+    networks: [s3test]
+
+  faultline:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    depends_on:
+      config:
+        condition: service_completed_successfully
+    command: ["serve", "--config", "/configs/baseline.yaml", "--admin-socket", "/tmp/faultline/admin.sock"]
+    volumes:
+      - configs:/configs:ro
+    networks:
+      s3test:
+        ipv4_address: 172.30.240.10
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: "0"
+
+  sdk:
+    build:
+      context: ../..
+      dockerfile: examples/s3/Dockerfile.fixture
+    profiles: [test]
+    depends_on: [faultline]
+    env_file: .env
+    extra_hosts:
+      - "${S3_TEST_HOST:?set S3_TEST_HOST in .env}:172.30.240.10"
+    networks: [s3test]
+
+  verifier:
+    build:
+      context: ../..
+      dockerfile: examples/s3/Dockerfile.fixture
+    profiles: [test]
+    env_file: .env
+    networks: [s3test]
+
+networks:
+  s3test:
+    ipam:
+      config:
+        - subnet: 172.30.240.0/24
+
+volumes:
+  configs:

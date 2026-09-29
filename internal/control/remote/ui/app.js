@@ -62,6 +62,13 @@ function field(parent, label, value, change, options) {
   return input;
 }
 function defaultFault(action, protocol) {
+  if (protocol === "tcp") {
+    const f = {Action:action, Phase:action === "delay_connect" ? "on_connect" : "on_transfer"};
+    if (action === "delay_connect") f.Duration = 100000000;
+    if (action === "hold") { f.Direction = "upstream_to_client"; f.MaxDuration = 5000000000; }
+    if (action === "throttle") { f.Direction = "client_to_upstream"; f.BytesPerSecond = 1024; }
+    return f;
+  }
   const f = {Action:action, Phase: action === "hold_response" ? "after_upstream_headers" : "before_upstream_request"};
   if (["postgresql", "mysql"].includes(protocol)) f.Phase = "after_commit";
   if (action === "delay") f.Duration = 100000000;
@@ -92,8 +99,9 @@ function renderRules() {
     const selector = selectorKinds.get(r) || ["Probability", "Nth", "Every"].find(k => r.Select[k] != null) || "Probability";
     selectorKinds.set(r, selector);
     field(grid, "Selector", selector, v => { selectorKinds.set(r,v); r.Select = {[v]: 1}; renderRules(); }, caps.selectors);
-    const number = field(grid, selector === "Probability" ? "Probability (0–1; 1 = 100%)" : `${selector} eligible ${["postgresql", "mysql"].includes(info.protocol) ? "commit" : "request"}`, r.Select[selector], v => r.Select[selector] = v === "" ? null : Number(v)); number.type = "number"; number.step = selector === "Probability" ? "any" : "1";
-    if (!["postgresql", "mysql"].includes(info.protocol)) {
+    const number = field(grid, selector === "Probability" ? "Probability (0–1; 1 = 100%)" : `${selector} eligible ${info.protocol === "tcp" ? "connection" : ["postgresql", "mysql"].includes(info.protocol) ? "commit" : "request"}`, r.Select[selector], v => r.Select[selector] = v === "" ? null : Number(v)); number.type = "number"; number.step = selector === "Probability" ? "any" : "1";
+    if (info.protocol === "tcp") element("p", "Matches every connection. TLS payload and S3 operations are not visible.", box);
+    else if (!["postgresql", "mysql"].includes(info.protocol)) {
       field(grid, info.protocol === "grpc" ? "RPC method (blank = any)" : "HTTP method (blank = any)", r.Match.Method, v => r.Match.Method = v);
       element("p", "Method filters which requests receive faults. A blank method matches all methods; forwarding preserves the original method.", box);
       const pathKind = pathKinds.get(r) || (r.Match.PathPattern ? "Pattern" : r.Match.Path ? "Exact" : "Any");
@@ -111,6 +119,20 @@ function renderRules() {
       headerInput.oninput = () => { headerDrafts.set(r, headerInput.value); try { const h = JSON.parse(headerInput.value); if (!h || Array.isArray(h) || typeof h !== "object" || Object.values(h).some(v => typeof v !== "string")) throw Error(); r.Match.Headers = h; headerInput.setCustomValidity(""); } catch { headerInput.setCustomValidity("Use a JSON object with string values"); } edited(); };
     } else element("p", "Matches confirmed commits of explicit transactions. Selectors count eligible commit cycles; faults can hide the acknowledgment even though data was committed.", box);
     field(grid, "Fault action", r.Fault.Action, v => { r.Fault = defaultFault(v, info.protocol); renderRules(); }, caps.actions[info.protocol]);
+    if (info.protocol === "tcp") {
+      const f = r.Fault;
+      const tcpPhase = field(grid, "Phase", f.Phase, () => {}, [f.Phase]); tcpPhase.disabled = true;
+      if (["hold", "throttle"].includes(f.Action)) field(grid, "Affected direction", f.Direction, v => f.Direction = v, ["client_to_upstream", "upstream_to_client"]);
+      if (f.Action !== "delay_connect") {
+        const trigger = f.AfterBytes != null ? "after_bytes" : f.AfterDuration != null ? "after_duration" : "immediate";
+        field(grid, "Trigger", trigger, v => { delete f.AfterBytes; delete f.AfterDuration; delete f.TriggerDirection; if (v === "after_bytes") { f.AfterBytes = 1024; f.TriggerDirection = "client_to_upstream"; } if (v === "after_duration") f.AfterDuration = 100000000; renderRules(); }, ["immediate", "after_bytes", "after_duration"]);
+        if (trigger === "after_bytes") { const input = field(grid, "Forwarded TLS bytes", f.AfterBytes, v => f.AfterBytes = v === "" ? null : Number(v)); input.type = "number"; input.min = "0"; field(grid, "Trigger direction", f.TriggerDirection, v => f.TriggerDirection = v, ["client_to_upstream", "upstream_to_client"]); }
+        if (trigger === "after_duration") { const input = field(grid, "After milliseconds", f.AfterDuration/1e6, v => f.AfterDuration = v === "" ? null : Number(v)*1e6); input.type = "number"; input.min = "0"; }
+      }
+      const parameter = {delay_connect:["Duration","Delay (milliseconds)",1e6],hold:["MaxDuration","Maximum hold (milliseconds)",1e6],throttle:["BytesPerSecond","Bytes per second",1]}[f.Action];
+      if (parameter) { const [key,label,scale] = parameter; const input = field(grid, label, f[key] == null ? "" : f[key]/scale, v => f[key] = v === "" ? null : Number(v)*scale); input.type = "number"; input.min = "1"; }
+      return;
+    }
     const phases = faultPhases(r.Fault, info.protocol);
     const phase = field(grid, "Phase", r.Fault.Phase, v => r.Fault.Phase = v, phases);
     phase.disabled = !editor() || phases.length === 1;
@@ -162,7 +184,7 @@ $("toastClose").onclick=()=>{clearTimeout(toastTimer);$("toast").hidden=true;};
 $("login").onsubmit=async event=>{event.preventDefault(); try { const fields=new FormData(event.target); session=await api("login",{name:fields.get("name"),password:fields.get("password")}); event.target.reset(); message(); await signedIn(); } catch(error) { message(error.message); }};
 $("logout").onclick=act(async()=>{await api("logout",{}); session=undefined; $("injectionBadge").hidden=true; draft=undefined; $("workspace").hidden=true; $("loginPanel").hidden=false; $("logout").hidden=true; $("identity").textContent="";});
 $("proxy").onchange=()=>{selected=Number($("proxy").value);renderRules();};
-$("add").onclick=()=>{const p=draft.proxies[selected];p.rules.push({ID:`rule-${Date.now()}`,Enabled:true,Match:{Method:"",Path:"",PathPattern:"",Service:"",Headers:{}},Select:{Probability:1},Fault:defaultFault("delay", active.proxies.find(x => x.id === p.id)?.protocol)});edited();renderRules();};
+$("add").onclick=()=>{const p=draft.proxies[selected];const protocol=active.proxies.find(x => x.id === p.id)?.protocol;p.rules.push({ID:`rule-${Date.now()}`,Enabled:true,Match:{Method:"",Path:"",PathPattern:"",Service:"",Headers:{}},Select:{Probability:1},Fault:defaultFault(protocol === "tcp" ? "close_connection" : "delay", protocol)});edited();renderRules();};
 $("refresh").onclick=act(async()=>{await loadActive();reviewed="";showDiff();message("Latest active loaded for comparison. Your draft is unchanged.");});
 $("rebase").onclick=()=>{if(confirm("Keep ALL draft rules shown on the right and use the latest revision as the base? This may replace another tester's edits. Compare both panels first.")){draft.base_revision=active.revision;edited();}};
 $("discard").onclick=act(async()=>{if(confirm("Discard all edits in this tab and load the active config?")){await loadActive();resetDraft();$("validation").textContent="Draft reset to active config.";}});

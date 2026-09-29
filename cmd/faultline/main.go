@@ -20,6 +20,7 @@ import (
 	httpproxy "github.com/plhhao/faultline/internal/proxy/http"
 	"github.com/plhhao/faultline/internal/proxy/mysql"
 	"github.com/plhhao/faultline/internal/proxy/postgresql"
+	"github.com/plhhao/faultline/internal/proxy/tcp"
 	"github.com/plhhao/faultline/internal/recorder"
 )
 
@@ -163,8 +164,13 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	defer myServer.Close()
+	tcpServer, err := tcp.Start(service, records)
+	if err != nil {
+		return err
+	}
+	defer tcpServer.Close()
 	listeners := func() []control.ListenerStatus {
-		return append(append(server.Listeners(), pgServer.Listeners()...), myServer.Listeners()...)
+		return append(append(append(server.Listeners(), pgServer.Listeners()...), myServer.Listeners()...), tcpServer.Listeners()...)
 	}
 	management, err := admin.Start(socket, service, records, listeners, managed != nil)
 	if err != nil {
@@ -175,6 +181,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		drain, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		myServer.Close()
+		tcpServer.Close()
 		pgServer.Close()
 		server.Shutdown(drain)
 		counts := records.Counters()
@@ -195,6 +202,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	case <-ctx.Done():
 		return nil
 	case err := <-myServer.Errors():
+		return err
+	case err := <-tcpServer.Errors():
 		return err
 	case err := <-pgServer.Errors():
 		return err
