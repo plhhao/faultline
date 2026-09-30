@@ -40,6 +40,8 @@ type Event struct {
 	GRPCStatus       string    `json:"grpc_status,omitempty"`
 	UpstreamStatus   int       `json:"upstream_status,omitempty"`
 	Operation        string    `json:"operation,omitempty"`
+	ClientBytes      int64     `json:"client_to_upstream_bytes,omitempty"`
+	UpstreamBytes    int64     `json:"upstream_to_client_bytes,omitempty"`
 	Changed          bool      `json:"changed"`
 	Counters         *Counters `json:"counters,omitempty"`
 }

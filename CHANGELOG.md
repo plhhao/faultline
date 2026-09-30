@@ -2,6 +2,18 @@
 
 Completed work following DEFINE → PLAN → BUILD → VERIFY → REVIEW.
 
+## 2026-09-26
+
+- Completed Phase 10 S3 TCP/TLS passthrough across contract, adapter and delivery. Added connection-scoped close/hold/throttle/dial-delay behavior, lifecycle/snapshot coverage, Docker-only virtual-host DNS routing and a Go SDK fixture compatible with real S3 endpoints; direct/proxied baselines and all seven fault cases passed with independent object checks and cleanup. Full Go tests/race/vet, TCP repeat/race tests, Docker/CLI runtime and 13 UI tests passed. Limits remain one fixed hostname, ciphertext byte semantics, one SDK attempt per fixture operation, and versioned-bucket cleanup requiring prefix inspection.
+
+## 2026-09-25
+
+- Planned Phase 10 S3 testing through a TCP/TLS passthrough and Docker-only DNS mapping, without app code changes or proxy-held AWS credentials. Split the phase into P26 contract, P27 adapter and P28 Docker/real-S3 acceptance; expanded the CLI/Go SDK matrix to seven network faults and added blank `examples/s3/.env` plus tracked `.env.example` for later credentials. Updated the roadmap, Phase 6 deferred note and specification. Verified documentation links, Git ignore and changed-line whitespace; no adapter code or live S3 test was run.
+
+## 2026-09-24
+
+- Extended `.gitignore` for generated Python, Java, Rust and JavaScript example files under `examples/`, including `node_modules`. Verified representative generated paths are ignored, source and lockfiles remain visible, no tracked files became ignored, and `git diff --check` passed. No runtime tests were needed.
+
 ## 2026-09-21
 
 - Rewrote the root README as an English GitHub landing page with an executable

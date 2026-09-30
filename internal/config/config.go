@@ -13,6 +13,8 @@ const (
 	AfterCommit           = "after_commit"
 	BeforeUpstreamRequest = "before_upstream_request"
 	AfterUpstreamHeaders  = "after_upstream_headers"
+	TCPOnConnect          = "on_connect"
+	TCPOnTransfer         = "on_transfer"
 )
 
 type Config struct {
@@ -73,15 +75,18 @@ type Selector struct {
 }
 
 type Fault struct {
-	Phase          string         `yaml:"phase"`
-	Action         string         `yaml:"action"`
-	Duration       *time.Duration `yaml:"duration"`
-	MaxDuration    *time.Duration `yaml:"max_duration"`
-	Status         *int           `yaml:"status"`
-	Body           *string        `yaml:"body"`
-	Direction      string         `yaml:"direction"`
-	Bytes          *int           `yaml:"bytes"`
-	BytesPerSecond *int           `yaml:"bytes_per_second"`
+	Phase            string         `yaml:"phase"`
+	Action           string         `yaml:"action"`
+	Duration         *time.Duration `yaml:"duration"`
+	MaxDuration      *time.Duration `yaml:"max_duration"`
+	Status           *int           `yaml:"status"`
+	Body             *string        `yaml:"body"`
+	Direction        string         `yaml:"direction"`
+	Bytes            *int           `yaml:"bytes"`
+	BytesPerSecond   *int           `yaml:"bytes_per_second"`
+	AfterBytes       *int           `yaml:"after_bytes"`
+	AfterDuration    *time.Duration `yaml:"after_duration"`
+	TriggerDirection string         `yaml:"trigger_direction"`
 }
 
 // Document owns validated, normalized configuration. Accessors return copies.
@@ -112,6 +117,8 @@ func (f Fault) Clone() Fault {
 	f.Body = clonePointer(f.Body)
 	f.Bytes = clonePointer(f.Bytes)
 	f.BytesPerSecond = clonePointer(f.BytesPerSecond)
+	f.AfterBytes = clonePointer(f.AfterBytes)
+	f.AfterDuration = clonePointer(f.AfterDuration)
 	return f
 }
 

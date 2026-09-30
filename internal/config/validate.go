@@ -31,8 +31,8 @@ func validate(c *Config, base string) (map[string][32]byte, error) {
 		if !identifier(p.ID) {
 			return nil, invalid(path+".id", "expected a nonempty identifier")
 		}
-		if p.Protocol != "http1" && p.Protocol != "http2" && p.Protocol != "grpc" && p.Protocol != "postgresql" && p.Protocol != "mysql" {
-			return nil, invalid(path+".protocol", "expected http1, http2, grpc, postgresql or mysql")
+		if p.Protocol != "http1" && p.Protocol != "http2" && p.Protocol != "grpc" && p.Protocol != "postgresql" && p.Protocol != "mysql" && p.Protocol != "tcp" {
+			return nil, invalid(path+".protocol", "expected http1, http2, grpc, postgresql, mysql or tcp")
 		}
 		if p.UpstreamProtocol == "" {
 			p.UpstreamProtocol = p.Protocol
@@ -40,10 +40,10 @@ func validate(c *Config, base string) (map[string][32]byte, error) {
 				p.UpstreamProtocol = "http2"
 			}
 		}
-		if (p.Protocol == "postgresql" || p.Protocol == "mysql") && p.UpstreamProtocol != p.Protocol {
-			return nil, invalid(path+".upstream_protocol", "database upstream protocol must match listener")
+		if (p.Protocol == "postgresql" || p.Protocol == "mysql" || p.Protocol == "tcp") && p.UpstreamProtocol != p.Protocol {
+			return nil, invalid(path+".upstream_protocol", "upstream protocol must match listener")
 		}
-		if p.Protocol != "postgresql" && p.Protocol != "mysql" && (p.UpstreamProtocol != "http1" && p.UpstreamProtocol != "http2" || p.Protocol == "grpc" && p.UpstreamProtocol != "http2") {
+		if p.Protocol != "postgresql" && p.Protocol != "mysql" && p.Protocol != "tcp" && (p.UpstreamProtocol != "http1" && p.UpstreamProtocol != "http2" || p.Protocol == "grpc" && p.UpstreamProtocol != "http2") {
 			return nil, invalid(path+".upstream_protocol", "expected http1 or http2; grpc requires http2")
 		}
 		host, port, err := net.SplitHostPort(p.Listen)
@@ -60,41 +60,58 @@ func validate(c *Config, base string) (map[string][32]byte, error) {
 		}
 		listeners[p.Listen] = true
 		u, err := url.Parse(p.Upstream)
-		if err != nil || !validUpstreamScheme(p.Protocol, u.Scheme) || u.User != nil || !hostname(u.Hostname()) || u.Opaque != "" || (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.ForceQuery || strings.Contains(p.Upstream, "#") {
-			scheme := "HTTP(S)"
-			if p.Protocol == "postgresql" || p.Protocol == "mysql" {
-				scheme = p.Protocol + "(s)"
+		if p.Protocol == "tcp" {
+			if err != nil || u.Scheme != "tcp" || u.User != nil || u.Opaque != "" || u.Path != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || !hostname(u.Hostname()) || u.Port() == "" {
+				return nil, invalid(path+".upstream", "expected tcp://host:port without credentials or path")
 			}
-			return nil, invalid(path+".upstream", "expected a "+scheme+" origin without credentials, path, query or fragment")
-		}
-		port = u.Port()
-		if (p.Protocol == "postgresql" || p.Protocol == "mysql") && port == "" && !strings.HasSuffix(u.Host, ":") {
-			port = "5432"
-			if p.Protocol == "mysql" {
-				port = "3306"
-			}
-		}
-		if port != "" {
-			n, err := strconv.Atoi(port)
-			if err != nil || n < 1 || n > 65535 {
+			n, portErr := strconv.Atoi(u.Port())
+			if portErr != nil || n < 1 || n > 65535 {
 				return nil, invalid(path+".upstream", "invalid port")
 			}
-			port = strconv.Itoa(n)
-		} else if strings.HasSuffix(u.Host, ":") {
-			return nil, invalid(path+".upstream", "invalid port")
-		}
-		host = strings.ToLower(u.Hostname())
-		if port == "80" && u.Scheme == "http" || port == "443" && u.Scheme == "https" {
-			port = ""
-		}
-		if port != "" {
-			host = net.JoinHostPort(host, port)
-		} else if strings.Contains(host, ":") {
-			host = "[" + host + "]"
-		}
-		p.Upstream = u.Scheme + "://" + host
-		if err := validateTLS(p, base, path, digests); err != nil {
-			return nil, err
+			p.Upstream = "tcp://" + net.JoinHostPort(strings.ToLower(u.Hostname()), strconv.Itoa(n))
+			if p.Upstream == "tcp://"+p.Listen {
+				return nil, invalid(path+".upstream", "upstream cannot equal listener")
+			}
+			if p.TLS != nil || p.UpstreamTLS != nil {
+				return nil, invalid(path+".tls", "tcp passthrough does not terminate TLS")
+			}
+		} else {
+			if err != nil || !validUpstreamScheme(p.Protocol, u.Scheme) || u.User != nil || !hostname(u.Hostname()) || u.Opaque != "" || (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.ForceQuery || strings.Contains(p.Upstream, "#") {
+				scheme := "HTTP(S)"
+				if p.Protocol == "postgresql" || p.Protocol == "mysql" {
+					scheme = p.Protocol + "(s)"
+				}
+				return nil, invalid(path+".upstream", "expected a "+scheme+" origin without credentials, path, query or fragment")
+			}
+			port = u.Port()
+			if (p.Protocol == "postgresql" || p.Protocol == "mysql") && port == "" && !strings.HasSuffix(u.Host, ":") {
+				port = "5432"
+				if p.Protocol == "mysql" {
+					port = "3306"
+				}
+			}
+			if port != "" {
+				n, err := strconv.Atoi(port)
+				if err != nil || n < 1 || n > 65535 {
+					return nil, invalid(path+".upstream", "invalid port")
+				}
+				port = strconv.Itoa(n)
+			} else if strings.HasSuffix(u.Host, ":") {
+				return nil, invalid(path+".upstream", "invalid port")
+			}
+			host = strings.ToLower(u.Hostname())
+			if port == "80" && u.Scheme == "http" || port == "443" && u.Scheme == "https" {
+				port = ""
+			}
+			if port != "" {
+				host = net.JoinHostPort(host, port)
+			} else if strings.Contains(host, ":") {
+				host = "[" + host + "]"
+			}
+			p.Upstream = u.Scheme + "://" + host
+			if err := validateTLS(p, base, path, digests); err != nil {
+				return nil, err
+			}
 		}
 		if p.Rules == nil {
 			p.Rules = []Rule{}
@@ -116,6 +133,12 @@ func validate(c *Config, base string) (map[string][32]byte, error) {
 			}
 			if p.Protocol == "postgresql" || p.Protocol == "mysql" {
 				if err := validateCommitRule(r, rp); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			if p.Protocol == "tcp" {
+				if err := validateTCPRule(r, rp); err != nil {
 					return nil, err
 				}
 				continue
@@ -199,7 +222,20 @@ func validateRule(r *Rule, path string) error {
 		headers[name] = value
 	}
 	r.Match.Headers = headers
-	s := r.Select
+	if err := validateSelector(r.Select, path); err != nil {
+		return err
+	}
+	if err := validateFault(r.Fault, path+".fault"); err != nil {
+		return err
+	}
+	if r.Fault.Action == "respond" && r.Fault.Body == nil {
+		body := ""
+		r.Fault.Body = &body
+	}
+	return nil
+}
+
+func validateSelector(s Selector, path string) error {
 	count := 0
 	if s.Probability != nil {
 		count++
@@ -225,17 +261,13 @@ func validateRule(r *Rule, path string) error {
 	if count != 1 {
 		return invalid(path+".select", "exactly one selector is required")
 	}
-	if err := validateFault(r.Fault, path+".fault"); err != nil {
-		return err
-	}
-	if r.Fault.Action == "respond" && r.Fault.Body == nil {
-		body := ""
-		r.Fault.Body = &body
-	}
 	return nil
 }
 
 func validateFault(f Fault, path string) error {
+	if f.AfterBytes != nil || f.AfterDuration != nil || f.TriggerDirection != "" {
+		return invalid(path, "TCP trigger fields require protocol tcp")
+	}
 	before, after := f.Phase == BeforeUpstreamRequest, f.Phase == AfterUpstreamHeaders
 	if !before && !after {
 		return invalid(path+".phase", "unsupported phase")
@@ -332,6 +364,59 @@ func validUpstreamScheme(protocol, scheme string) bool {
 	}
 	return scheme == "http" || scheme == "https"
 }
+
+func validateTCPRule(r *Rule, path string) error {
+	m := r.Match
+	if m.Method != "" || m.Path != "" || m.PathPattern != "" || m.Service != "" || len(m.Headers) != 0 {
+		return invalid(path+".match", "tcp requires an empty matcher")
+	}
+	if err := validateSelector(r.Select, path); err != nil {
+		return err
+	}
+	f := r.Fault
+	if f.Status != nil || f.Body != nil || f.Bytes != nil {
+		return invalid(path+".fault", "HTTP fields are unsupported for tcp")
+	}
+	if f.AfterBytes != nil && f.AfterDuration != nil {
+		return invalid(path+".fault", "choose one trigger")
+	}
+	if f.AfterBytes != nil {
+		if *f.AfterBytes < 0 {
+			return invalid(path+".fault.after_bytes", "must be nonnegative")
+		}
+		if f.TriggerDirection != "client_to_upstream" && f.TriggerDirection != "upstream_to_client" {
+			return invalid(path+".fault.trigger_direction", "byte trigger requires a direction")
+		}
+	} else if f.TriggerDirection != "" {
+		return invalid(path+".fault.trigger_direction", "requires after_bytes")
+	}
+	if f.AfterDuration != nil && *f.AfterDuration <= 0 {
+		return invalid(path+".fault.after_duration", "must be positive")
+	}
+	switch f.Action {
+	case "delay_connect":
+		if f.Phase != TCPOnConnect || f.Duration == nil || *f.Duration <= 0 || f.AfterBytes != nil || f.AfterDuration != nil || f.Direction != "" || f.MaxDuration != nil || f.BytesPerSecond != nil {
+			return invalid(path+".fault", "delay_connect requires on_connect and positive duration only")
+		}
+	case "close_connection":
+		if f.Phase != TCPOnTransfer || f.Direction != "" || f.Duration != nil || f.MaxDuration != nil || f.BytesPerSecond != nil {
+			return invalid(path+".fault", "close_connection requires on_transfer and a valid trigger")
+		}
+	case "hold":
+		if f.Phase != TCPOnTransfer || !tcpDirection(f.Direction) || f.MaxDuration == nil || *f.MaxDuration <= 0 || f.Duration != nil || f.BytesPerSecond != nil {
+			return invalid(path+".fault", "hold requires on_transfer, direction and positive max_duration")
+		}
+	case "throttle":
+		if f.Phase != TCPOnTransfer || !tcpDirection(f.Direction) || f.BytesPerSecond == nil || *f.BytesPerSecond <= 0 || f.Duration != nil || f.MaxDuration != nil {
+			return invalid(path+".fault", "throttle requires on_transfer, direction and positive bytes_per_second")
+		}
+	default:
+		return invalid(path+".fault.action", "unsupported tcp action")
+	}
+	return nil
+}
+
+func tcpDirection(d string) bool { return d == "client_to_upstream" || d == "upstream_to_client" }
 
 func validateCommitRule(r *Rule, path string) error {
 	m := r.Match
