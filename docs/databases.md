@@ -45,3 +45,38 @@ Run the [PostgreSQL](../examples/postgresql/README.md) or
 `caching_sha2_password` and plaintext/plaintext or TLS/TLS connections; mixed
 TLS legs are rejected. See the [MySQL contract](../plans/09-semantic-adapters/mysql-contract.md)
 and [PostgreSQL contract](../plans/09-semantic-adapters/contract.md) for limits.
+
+## MySQL clients using mysql2 or TypeORM
+
+The `mysql2` client enables `LOCAL_FILES` and `MULTI_RESULTS` by default.
+Faultline currently rejects these capability flags during the connection
+handshake, even if the application never uses either feature. The client can
+report `Connection lost: The server closed the connection.` before executing
+any query. This also applies when fault probability is `0` or injection is disabled.
+
+For applications that do not use these features, add this option to the existing
+`mysql2.createConnection` or `mysql2.createPool` configuration:
+
+```javascript
+flags: '-LOCAL_FILES,-MULTI_RESULTS'
+```
+
+With TypeORM, pass the flags through `extra`, preserving any existing options:
+
+```typescript
+extra: {
+  decimalNumbers: true,
+  flags: '-LOCAL_FILES,-MULTI_RESULTS',
+},
+```
+
+- `LOCAL_FILES` permits `LOAD DATA LOCAL INFILE`, which transfers file contents
+  from the client to the server. Faultline does not implement this transfer flow.
+- `MULTI_RESULTS` permits multiple result sets from a command, such as a stored
+  procedure call. Faultline does not implement these response sequences.
+
+Disabling the flags allows ordinary queries and explicit transactions to use the
+supported protocol. It does not add support for file imports, stored procedures,
+multiple statements, or multiple result sets. Check the application's queries
+before applying this configuration; applications requiring these features cannot
+use them through the current MySQL adapter.

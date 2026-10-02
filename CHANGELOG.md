@@ -2,6 +2,10 @@
 
 Completed work following DEFINE → PLAN → BUILD → VERIFY → REVIEW.
 
+## 2026-10-02
+
+- Documented the mysql2/TypeORM handshake failure caused by default `LOCAL_FILES` and `MULTI_RESULTS` capabilities, the client flag workaround, and its feature limits in `docs/databases.md` and `examples/mysql/README.md`. Verified the guidance against adapter/client behavior, local links and Markdown whitespace; documentation-only change.
+
 ## 2026-09-26
 
 - Completed Phase 10 S3 TCP/TLS passthrough across contract, adapter and delivery. Added connection-scoped close/hold/throttle/dial-delay behavior, lifecycle/snapshot coverage, Docker-only virtual-host DNS routing and a Go SDK fixture compatible with real S3 endpoints; direct/proxied baselines and all seven fault cases passed with independent object checks and cleanup. Full Go tests/race/vet, TCP repeat/race tests, Docker/CLI runtime and 13 UI tests passed. Limits remain one fixed hostname, ciphertext byte semantics, one SDK attempt per fixture operation, and versioned-bucket cleanup requiring prefix inspection.

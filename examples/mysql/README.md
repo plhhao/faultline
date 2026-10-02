@@ -87,6 +87,16 @@ Theo quyết định hiện tại, automated JavaScript/API regression là nghi�
 
 Xem [contract](../../plans/09-semantic-adapters/mysql-contract.md) và [bằng chứng kiểm thử](../../plans/09-semantic-adapters/mysql-acceptance.md).
 
+### Client mysql2 / TypeORM
+
+`mysql2` mặc định bật `LOCAL_FILES` và `MULTI_RESULTS`. Faultline từ chối hai
+capability này ngay trong handshake, kể cả khi app không dùng chúng hoặc
+probability bằng `0`; client có thể báo `Connection lost: The server closed the connection.`
+Nếu app không dùng `LOAD DATA LOCAL INFILE` hoặc nhiều tập kết quả, thêm
+`flags: '-LOCAL_FILES,-MULTI_RESULTS'` vào cấu hình mysql2; với TypeORM, đặt trong
+`extra` và giữ các option đang có. Xem [hướng dẫn và ví dụ cấu hình](../../docs/databases.md#mysql-clients-using-mysql2-or-typeorm).
+Tắt flag không bổ sung hỗ trợ truyền file, stored procedure hay multi-results.
+
 ## 4. Chạy proxy trong Docker (tùy chọn)
 
 Với MySQL demo ở mục 1:
